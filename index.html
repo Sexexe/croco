@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
 <title>ОХОТНИК НА КРОКОДИЛОВ</title>
+<script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
 <script src="https://yandex.ru/games/sdk/v2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Rye&display=swap');
@@ -142,6 +143,103 @@ body{margin:0;overflow:hidden;background:#1a120b;font-family:Arial,sans-serif;us
 </div>
 <script type="module">
 import*as THREE from'three';
+
+// ===== VK BRIDGE INTEGRATION =====
+const vkBridge = window.vkBridge;
+let vkBridgeReady = false;
+let isVkEnvironment = false;
+
+// Инициализация VK Bridge
+if (vkBridge) {
+    try {
+        vkBridge.send('VKWebAppInit')
+            .then(() => {
+                vkBridgeReady = true;
+                isVkEnvironment = true;
+                console.log('VK Bridge initialized successfully');
+            })
+            .catch((e) => {
+                console.warn('VK Bridge init failed (not in VK environment):', e);
+                isVkEnvironment = false;
+            });
+
+        // Подписка на события VK Bridge
+        vkBridge.subscribe((event) => {
+            if (!event.detail || !event.detail.type) return;
+
+            switch (event.detail.type) {
+                // При сворачивании приложения — ставим игру на паузу и глушим звук
+                case 'VKWebAppChangeFragment':
+                case 'VKWebAppHideFullscreen':
+                    if (radioPlaying) {
+                        if (radioReggae) radioReggae.pause();
+                        if (radioDark) radioDark.pause();
+                    }
+                    break;
+
+                // При возврате — возобновляем музыку, если она играла
+                case 'VKWebAppShowFullscreen':
+                case 'VKWebAppRestore':
+                    if (radioPlaying) {
+                        updateMusicVolumes();
+                        if (radioReggae) radioReggae.play().catch(()=>{});
+                        if (radioDark) radioDark.play().catch(()=>{});
+                    }
+                    break;
+
+                // Обработка события изменения видимости страницы
+                case 'VKWebAppUpdateConfig':
+                    if (event.detail.type === 'VKWebAppUpdateConfig') {
+                        const appearance = event.detail.data && event.detail.data.appearance;
+                        // Можно использовать для смены темы UI
+                    }
+                    break;
+            }
+        });
+    } catch (e) {
+        console.warn('VK Bridge setup error:', e);
+    }
+}
+
+// Вспомогательные функции для VK Bridge
+function vkShare(text) {
+    if (!isVkEnvironment || !vkBridge) return;
+    vkBridge.send('VKWebAppShare', { text: text })
+        .then((data) => console.log('Share result:', data))
+        .catch((e) => console.warn('Share failed:', e));
+}
+
+function vkScrollToTop() {
+    if (!isVkEnvironment || !vkBridge) return;
+    vkBridge.send('VKWebAppScrollTop', { position: 0 }).catch(()=>{});
+}
+
+function vkSetViewHeight(height) {
+    if (!isVkEnvironment || !vkBridge) return;
+    vkBridge.send('VKWebAppSetViewSettings', {
+        statusbar_style: 'light',
+        action_bar_color: '#1a120b',
+        navigation_bar_color: '#1a120b'
+    }).catch(()=>{});
+}
+
+function vkTapticFeedback(type = 'light') {
+    if (!isVkEnvironment || !vkBridge) return;
+    vkBridge.send('VKWebAppTapticFeedback', { type: type }).catch(()=>{});
+}
+
+function vkEnableNativeLoader() {
+    if (!isVkEnvironment || !vkBridge) return;
+    vkBridge.send('VKWebAppEnableNativeLoader').catch(()=>{});
+}
+
+// Настраиваем цвета статус-бара и навигации при загрузке
+if (isVkEnvironment) {
+    vkSetViewHeight();
+    vkEnableNativeLoader();
+}
+// ===== END VK BRIDGE INTEGRATION =====
+
 const C={ms:100,ws:200,tc:125,rc:90,crc:50,mv:4,fr:.15,bs:120,dd:220};
 const isMob=/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)||innerWidth<800;
 const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -184,7 +282,10 @@ function init(){scn=new THREE.Scene();cam=new THREE.PerspectiveCamera(75,innerWi
 function createAKRifle(){const svgStr=`<svg width="960" height="1695" viewBox="0 0 320 565" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="woodGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#8B4513"/><stop offset="30%" style="stop-color:#A0522D"/><stop offset="50%" style="stop-color:#CD853F"/><stop offset="70%" style="stop-color:#A0522D"/><stop offset="100%" style="stop-color:#8B4513"/></linearGradient><linearGradient id="metalGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#2a2a2a"/><stop offset="30%" style="stop-color:#4a4a4a"/><stop offset="50%" style="stop-color:#5a5a5a"/><stop offset="70%" style="stop-color:#4a4a4a"/><stop offset="100%" style="stop-color:#2a2a2a"/></linearGradient><linearGradient id="metalLight" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#3a3a3a"/><stop offset="50%" style="stop-color:#6a6a6a"/><stop offset="100%" style="stop-color:#3a3a3a"/></linearGradient><linearGradient id="muzzleGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#1a1a1a"/><stop offset="50%" style="stop-color:#3a3a3a"/><stop offset="100%" style="stop-color:#1a1a1a"/></linearGradient></defs><g transform="translate(160, 30)"><rect x="-18" y="0" width="36" height="55" rx="3" fill="url(#muzzleGrad)" stroke="#111" stroke-width="1"/><rect x="-15" y="8" width="6" height="12" rx="1" fill="#111"/><rect x="9" y="8" width="6" height="12" rx="1" fill="#111"/><rect x="-15" y="28" width="6" height="12" rx="1" fill="#111"/><rect x="9" y="28" width="6" height="12" rx="1" fill="#111"/><circle cx="0" cy="27" r="6" fill="#0a0a0a" stroke="#222" stroke-width="1"/><rect x="-12" y="-5" width="24" height="8" rx="2" fill="#2a2a2a" stroke="#111" stroke-width="0.5"/></g><g transform="translate(160, 85)"><rect x="-10" y="0" width="20" height="80" fill="url(#metalGrad)" stroke="#222" stroke-width="1"/><rect x="-6" y="-3" width="12" height="83" rx="2" fill="#3a3a3a" stroke="#222" stroke-width="0.8"/><rect x="-14" y="30" width="28" height="18" rx="2" fill="#2a2a2a" stroke="#111" stroke-width="1"/><rect x="-10" y="34" width="20" height="10" rx="1" fill="#3a3a3a"/><rect x="-8" y="55" width="16" height="12" rx="1" fill="#2a2a2a" stroke="#111" stroke-width="0.8"/></g><g transform="translate(160, 165)"><path d="M-22,0 L22,0 L25,100 L-25,100 Z" fill="url(#woodGrad)" stroke="#6B3410" stroke-width="1"/><line x1="-10" y1="10" x2="-10" y2="90" stroke="#7B3F10" stroke-width="0.5" opacity="0.5"/><line x1="0" y1="5" x2="0" y2="95" stroke="#7B3F10" stroke-width="0.5" opacity="0.4"/><line x1="10" y1="10" x2="10" y2="90" stroke="#7B3F10" stroke-width="0.5" opacity="0.5"/><rect x="-3" y="5" width="6" height="90" fill="#CD853F" opacity="0.3"/></g><g transform="translate(160, 165)"><path d="M-28,0 L-22,0 L-25,100 L-30,100 Z" fill="#6B3410" stroke="#5a2d0c" stroke-width="0.8"/><path d="M22,0 L28,0 L30,100 L25,100 Z" fill="#6B3410" stroke="#5a2d0c" stroke-width="0.8"/></g><g transform="translate(160, 265)"><rect x="-30" y="0" width="60" height="180" rx="4" fill="url(#metalLight)" stroke="#222" stroke-width="1.5"/><line x1="-25" y1="15" x2="25" y2="15" stroke="#444" stroke-width="0.8"/><line x1="-25" y1="165" x2="25" y2="165" stroke="#444" stroke-width="0.8"/><rect x="-18" y="25" width="36" height="50" rx="2" fill="#3a3a3a" stroke="#222" stroke-width="1"/><rect x="-14" y="30" width="28" height="40" rx="1" fill="#4a4a4a"/><rect x="-12" y="40" width="24" height="20" rx="1" fill="#555" stroke="#333" stroke-width="0.5"/><text x="0" y="54" text-anchor="middle" font-size="7" fill="#888" font-family="monospace">864</text><rect x="8" y="40" width="10" height="20" rx="1" fill="#555" stroke="#333" stroke-width="0.5"/><text x="13" y="54" text-anchor="middle" font-size="6" fill="#888" font-family="monospace">753</text><path d="M30,60 Q45,55 50,70 Q48,80 35,75" fill="#3a3a3a" stroke="#222" stroke-width="1"/><circle cx="32" cy="65" r="3" fill="#4a4a4a" stroke="#222" stroke-width="0.5"/><rect x="-35" y="100" width="8" height="15" rx="2" fill="#3a3a3a" stroke="#222" stroke-width="0.8"/><rect x="-10" y="85" width="20" height="30" rx="2" fill="#4a4a4a" stroke="#333" stroke-width="0.8"/><line x1="-6" y1="90" x2="6" y2="90" stroke="#555" stroke-width="0.5"/><line x1="-6" y1="95" x2="6" y2="95" stroke="#555" stroke-width="0.5"/><line x1="-6" y1="100" x2="6" y2="100" stroke="#555" stroke-width="0.5"/><line x1="-6" y1="105" x2="6" y2="105" stroke="#555" stroke-width="0.5"/><rect x="-15" y="125" width="30" height="20" rx="2" fill="#3a3a3a" stroke="#222" stroke-width="1"/><rect x="-10" y="128" width="20" height="14" rx="1" fill="#4a4a4a"/><rect x="-3" y="130" width="6" height="10" rx="1" fill="#222"/><path d="M-20,155 L-20,175 Q-20,180 -15,180 L15,180 Q20,180 20,175 L20,155" fill="none" stroke="#333" stroke-width="2"/></g><g transform="translate(195, 310)"><rect x="0" y="0" width="15" height="8" rx="2" fill="#4a4a4a" stroke="#222" stroke-width="0.8"/><rect x="12" y="-2" width="8" height="12" rx="2" fill="#3a3a3a" stroke="#222" stroke-width="0.8"/></g><g transform="translate(160, 430)"><rect x="-3" y="0" width="6" height="15" rx="1" fill="#3a3a3a" stroke="#222" stroke-width="0.5"/></g></svg>`;const blob=new Blob([svgStr],{type:'image/svg+xml'});const url=URL.createObjectURL(blob);const tex=new THREE.TextureLoader().load(url);tex.colorSpace=THREE.SRGBColorSpace;const akGroup=new THREE.Group();const aspect=565/320;const planeW=0.5;const planeH=planeW*aspect;const vertices=new Float32Array([-planeW/2,planeH/2,0,planeW/2,planeH/2,0,-planeW/2,-planeH/2,0,planeW/2,-planeH/2,0]);const uvs=new Float32Array([0,1,1,1,0,0,1,0]);const indices=[0,2,1,1,2,3];const planeGeo=new THREE.BufferGeometry();planeGeo.setAttribute('position',new THREE.BufferAttribute(vertices,3));planeGeo.setAttribute('uv',new THREE.BufferAttribute(uvs,2));planeGeo.setIndex(indices);planeGeo.computeVertexNormals();const planeMat=new THREE.MeshBasicMaterial({map:tex,transparent:true,side:THREE.DoubleSide,depthWrite:false});const akMesh=new THREE.Mesh(planeGeo,planeMat);akMesh.rotation.x=-Math.PI/2;akMesh.position.set(0,0,0.05);akGroup.add(akMesh);akGroup.position.set(0.15,-0.35,-0.5);akGroup.rotation.set(-0.15,0,0);cam.add(akGroup);scn.add(cam);gn=akGroup}
 function updateMoveBtn(){const btn=document.getElementById('moveBtn');if(isStopped){btn.className='move-btn go';btn.innerText='ШАГАТЬ'}else{btn.className='move-btn stop';btn.innerText='СТОЯТЬ'}}
 function updateCamRot(){cam.rotation.order='YXZ';cam.rotation.y=yaw;cam.rotation.x=pitch;cam.rotation.z=0}
-function fireCenter(){const n=performance.now()/1000;if(n-ls<C.fr||pl.a<=0)return;pl.a--;ls=n;uH();sfxShoot();const dir=new THREE.Vector3();cam.getWorldDirection(dir);dir.normalize();const f=new THREE.PointLight(0xffaa00,2,5);f.position.copy(cam.position);f.position.addScaledVector(dir,.8);scn.add(f);setTimeout(()=>scn.remove(f),40);const b=new THREE.Mesh(new THREE.SphereGeometry(.08),new THREE.MeshBasicMaterial({color:0xffff00}));b.position.copy(cam.position).addScaledVector(dir,.5);b.userData={v:dir.multiplyScalar(C.bs),l:2};scn.add(b);bl.push(b);if(gn){gn.position.z+=.03;setTimeout(()=>gn.position.z-=.03,80)}}
+function fireCenter(){const n=performance.now()/1000;if(n-ls<C.fr||pl.a<=0)return;pl.a--;ls=n;uH();sfxShoot();
+    // Вибрация при выстреле в VK
+    vkTapticFeedback('light');
+const dir=new THREE.Vector3();cam.getWorldDirection(dir);dir.normalize();const f=new THREE.PointLight(0xffaa00,2,5);f.position.copy(cam.position);f.position.addScaledVector(dir,.8);scn.add(f);setTimeout(()=>scn.remove(f),40);const b=new THREE.Mesh(new THREE.SphereGeometry(.08),new THREE.MeshBasicMaterial({color:0xffff00}));b.position.copy(cam.position).addScaledVector(dir,.5);b.userData={v:dir.multiplyScalar(C.bs),l:2};scn.add(b);bl.push(b);if(gn){gn.position.z+=.03;setTimeout(()=>gn.position.z-=.03,80)}}
 function crW(){}
 function genW(){treePositions.length=0;let treesPlaced=0;for(let i=0;i<C.tc*3&&treesPlaced<C.tc;i++){const a=Math.random()*Math.PI*2,r=CLEARING_RADIUS+Math.random()*(C.ms/2-10-CLEARING_RADIUS),x=Math.cos(a)*r,z=Math.sin(a)*r;const sv=(.4+Math.random()*1.6)*1.5,tr=(.2+Math.random()*.3)*sv;const minDist=tr*10;let tooClose=false;for(let j=0;j<treePositions.length;j++){const tp=treePositions[j];const dx=tp.x-x,dz=tp.z-z;if(Math.sqrt(dx*dx+dz*dz)<minDist){tooClose=true;break}}if(tooClose)continue;treePositions.push({x,z,tr});cUTAt(x,z,tr);treesPlaced++}for(let i=0;i<C.rc;i++)cR()}
 function cUTAt(x,z,trBase){const sv=(.4+Math.random()*1.6)*1.5,th=(3+Math.random()*6)*sv,tr=trBase||(.2+Math.random()*.3)*sv,g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=Math.random()*Math.PI*2;const tg=new THREE.CylinderGeometry(tr*.8,tr,th,7),pa=tg.attributes.position;for(let i=0;i<pa.count;i++){if(pa.getY(i)>0)pa.setXYZ(i,pa.getX(i)+(Math.random()-.5)*tr*.2,pa.getY(i),pa.getZ(i)+(Math.random()-.5)*tr*.2)}tg.computeVertexNormals();const t=new THREE.Mesh(tg,mt.tr);t.position.y=th/2;t.castShadow=true;t.receiveShadow=true;g.add(t);const rc=3+Math.floor(Math.random()*4);for(let ri=0;ri<rc;ri++){const rl=(tr*2+Math.random()*tr)/10,rg=new THREE.CylinderGeometry(.005*sv,tr*.08,rl,5),rt=new THREE.Mesh(rg,mt.tr);rt.position.y=tr*.08;rt.rotation.z=Math.PI/2.5+Math.random()*.5;rt.rotation.y=(ri/rc)*Math.PI*2+Math.random();rt.position.x=Math.cos(rt.rotation.y)*tr*.05;rt.position.z=Math.sin(rt.rotation.y)*tr*.05;rt.castShadow=true;g.add(rt)}const ly=4+Math.floor(Math.random()*4);for(let l=0;l<ly;l++){const sz=(1.5+Math.random()*1.5)*sv*(1-l*.15),yo=th+l*(.8*sv),cg=new THREE.IcosahedronGeometry(sz,12),cp=cg.attributes.position;for(let v=0;v<cp.count;v++){cp.setX(v,cp.getX(v)+(Math.random()-.5)*sz*.35);cp.setY(v,cp.getY(v)+(Math.random()-.5)*sz*.35);cp.setZ(v,cp.getZ(v)+(Math.random()-.5)*sz*.35)}cg.computeVertexNormals();const hue=.25+Math.random()*.1,sat=.6+Math.random()*.2,lit=.2+Math.random()*.25;const cn=new THREE.Mesh(cg,new THREE.MeshStandardMaterial({color:new THREE.Color().setHSL(hue,sat,lit),roughness:.8,flatShading:true}));cn.position.y=yo;cn.castShadow=true;cn.receiveShadow=true;g.add(cn)}scn.add(g)}
@@ -195,7 +296,16 @@ window.sG=function(){document.getElementById('overlay').style.display='none';doc
 function sCr(){const active=en.length,toSpawn=Math.min(3-active,C.crc-killed);for(let i=0;i<toSpawn;i++){const m=cCr();const a=Math.random()*Math.PI*2,r=C.ms/2+5+Math.random()*15;m.position.set(Math.cos(a)*r,-.2,Math.sin(a)*r);scn.add(m);en.push({mesh:m,...m.userData})}}
 function sM(id,t){const e=document.getElementById(id);e.innerHTML=t;e.style.opacity=1;setTimeout(()=>e.style.opacity=0,1500)}
 function cP(p,c,n){for(let i=0;i<n;i++){const m=new THREE.Mesh(new THREE.BoxGeometry(.1,.1,.1),new THREE.MeshBasicMaterial({color:c}));m.position.copy(p);m.userData={v:new THREE.Vector3((Math.random()-.5)*6,Math.random()*6,(Math.random()-.5)*6),l:.6};scn.add(m);pa.push(m)}}
-function upd(d){if(pl.d)return;uDN(d);updateAmbient(d);updateFlies(d);updateVoodoo(d,gt);const isNight=gt>=140/220;if(isNight&&en.length<3)sCr();if(!isNight&&en.length>0){en.forEach(e=>scn.remove(e.mesh));en=[]}if(!isStopped){const fwd=new THREE.Vector3(0,0,-1);fwd.applyAxisAngle(new THREE.Vector3(0,1,0),yaw);cam.position.addScaledVector(fwd,C.mv*d)}cam.position.y=2+Math.sin(performance.now()*.003)*.005;if(gn)gn.position.y=-.35+Math.sin(performance.now()*.003)*.005;const dc=Math.sqrt(cam.position.x**2+cam.position.z**2);if(dc>C.ms/2-2){const a=Math.atan2(cam.position.z,cam.position.x);cam.position.x=Math.cos(a)*(C.ms/2-2);cam.position.z=Math.sin(a)*(C.ms/2-2)}cr.forEach(c=>{if(!c.userData.c&&cam.position.distanceTo(c.position)<2){c.userData.c=true;c.visible=false;if(c.userData.t==='gold'){pl.g+=c.userData.ga;sM('pickup-msg','+'+c.userData.ga+' <span class="scl-gold">ЗОЛОТО</span>');sfxGold()}else{pl.a+=20;sM('pickup-msg','+20 <span class="scl-ammo">ПАТРОНЫ</span>');sfxAmmo()}uH()}});for(let i=bl.length-1;i>=0;i--){const b=bl[i];b.position.addScaledVector(b.userData.v,d);b.userData.l-=d;let h=false;for(let j=en.length-1;j>=0;j--){const e=en[j];if(b.position.distanceTo(e.mesh.position)<1.2){cP(e.mesh.position,0x1a3a1a,10);sfxCrocDeath();const bd=e.mesh.clone();bd.rotation.set(Math.PI,0,0);bd.position.y=.35;scn.add(bd);db.push(bd);createFlies(bd.position);scn.remove(e.mesh);en.splice(j,1);killed++;h=true;document.getElementById('kill-display').innerText=killed+'/'+totalKills;if(killed>=totalKills){pl.d=true;document.getElementById('win-gold-display').innerHTML='<span class="scl-gold">ЗОЛОТО</span>: '+pl.g;document.getElementById('win-screen').style.display='flex';buildWinGoldMountain()}break}}if(h||b.userData.l<=0){scn.remove(b);bl.splice(i,1)}}en.forEach(e=>{e.wp+=d*e.sp;e.lg.forEach((l,i)=>l.rotation.x=Math.sin(e.wp+i*Math.PI/2)*.4);const tp=new THREE.Vector3().subVectors(cam.position,e.mesh.position);tp.y=0;const ds=tp.length();if(ds>1.2){tp.normalize();e.mesh.position.addScaledVector(tp,e.sp*d);e.mesh.lookAt(cam.position.x,e.mesh.position.y,cam.position.z)}else{pl.hp-=15*d;sfxHurt();uH();if(pl.hp<=0){pl.d=true;document.getElementById('lose-desc').innerHTML='<span class="scl-gold">ЗОЛОТО</span>: '+pl.g+'<br>Крокодилы выиграли.';document.getElementById('lose-screen').style.display='flex'}}});for(let i=pa.length-1;i>=0;i--){const p=pa[i];p.position.addScaledVector(p.userData.v,d);p.userData.v.y-=15*d;p.userData.l-=d;p.scale.multiplyScalar(.9);if(p.userData.l<=0||p.position.y<0){scn.remove(p);pa.splice(i,1)}}}
+function upd(d){if(pl.d)return;uDN(d);updateAmbient(d);updateFlies(d);updateVoodoo(d,gt);const isNight=gt>=140/220;if(isNight&&en.length<3)sCr();if(!isNight&&en.length>0){en.forEach(e=>scn.remove(e.mesh));en=[]}if(!isStopped){const fwd=new THREE.Vector3(0,0,-1);fwd.applyAxisAngle(new THREE.Vector3(0,1,0),yaw);cam.position.addScaledVector(fwd,C.mv*d)}cam.position.y=2+Math.sin(performance.now()*.003)*.005;if(gn)gn.position.y=-.35+Math.sin(performance.now()*.003)*.005;const dc=Math.sqrt(cam.position.x**2+cam.position.z**2);if(dc>C.ms/2-2){const a=Math.atan2(cam.position.z,cam.position.x);cam.position.x=Math.cos(a)*(C.ms/2-2);cam.position.z=Math.sin(a)*(C.ms/2-2)}cr.forEach(c=>{if(!c.userData.c&&cam.position.distanceTo(c.position)<2){c.userData.c=true;c.visible=false;if(c.userData.t==='gold'){pl.g+=c.userData.ga;sM('pickup-msg','+'+c.userData.ga+' <span class="scl-gold">ЗОЛОТО</span>');sfxGold()}else{pl.a+=20;sM('pickup-msg','+20 <span class="scl-ammo">ПАТРОНЫ</span>');sfxAmmo()}uH()}});for(let i=bl.length-1;i>=0;i--){const b=bl[i];b.position.addScaledVector(b.userData.v,d);b.userData.l-=d;let h=false;for(let j=en.length-1;j>=0;j--){const e=en[j];if(b.position.distanceTo(e.mesh.position)<1.2){cP(e.mesh.position,0x1a3a1a,10);sfxCrocDeath();const bd=e.mesh.clone();bd.rotation.set(Math.PI,0,0);bd.position.y=.35;scn.add(bd);db.push(bd);createFlies(bd.position);scn.remove(e.mesh);en.splice(j,1);killed++;h=true;document.getElementById('kill-display').innerText=killed+'/'+totalKills;
+    // Вибрация при убийстве крокодила
+    vkTapticFeedback('medium');
+if(killed>=totalKills){pl.d=true;document.getElementById('win-gold-display').innerHTML='<span class="scl-gold">ЗОЛОТО</span>: '+pl.g;document.getElementById('win-screen').style.display='flex';buildWinGoldMountain();
+    // Поделиться результатом в VK
+    if(isVkEnvironment){vkShare('Я освободил Ямайку в игре "Охотник на крокодилов"! Моё золото: '+pl.g)}
+}break}}if(h||b.userData.l<=0){scn.remove(b);bl.splice(i,1)}}en.forEach(e=>{e.wp+=d*e.sp;e.lg.forEach((l,i)=>l.rotation.x=Math.sin(e.wp+i*Math.PI/2)*.4);const tp=new THREE.Vector3().subVectors(cam.position,e.mesh.position);tp.y=0;const ds=tp.length();if(ds>1.2){tp.normalize();e.mesh.position.addScaledVector(tp,e.sp*d);e.mesh.lookAt(cam.position.x,e.mesh.position.y,cam.position.z)}else{pl.hp-=15*d;sfxHurt();uH();
+    // Вибрация при получении урона
+    vkTapticFeedback('heavy');
+if(pl.hp<=0){pl.d=true;document.getElementById('lose-desc').innerHTML='<span class="scl-gold">ЗОЛОТО</span>: '+pl.g+'<br>Крокодилы выиграли.';document.getElementById('lose-screen').style.display='flex'}}});for(let i=pa.length-1;i>=0;i--){const p=pa[i];p.position.addScaledVector(p.userData.v,d);p.userData.v.y-=15*d;p.userData.l-=d;p.scale.multiplyScalar(.9);if(p.userData.l<=0||p.position.y<0){scn.remove(p);pa.splice(i,1)}}}
 function uH(){document.getElementById('hp-val').innerText=Math.max(0,Math.floor(pl.hp))+'%';document.getElementById('gold-val').innerText=pl.g+' зл';document.getElementById('ammo-val').innerText=pl.a;document.getElementById('hp-val').style.color=pl.hp>30?'#8b0000':'#ff0000'}
 function onR(){cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();rnd.setSize(innerWidth,innerHeight)}
 function anim(){requestAnimationFrame(anim);const t=performance.now(),d=Math.min((t-pt)/1000,.1);pt=t;if(ia&&!pl.d)upd(d);rnd.render(scn,cam)}
