@@ -9,7 +9,6 @@
 <title>ОХОТНИК НА КРОКОДИЛОВ</title>
 <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
 <style>
-/* Добавлен шрифт Open Sans с нужными начертаниями */
 @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@700;800&family=Rye&display=swap');
 *{margin:0;padding:0;box-sizing:border-box}
 body{margin:0;overflow:hidden;background:#1a120b;font-family:Arial,sans-serif;user-select:none;-webkit-user-select:none;touch-action:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
@@ -30,7 +29,6 @@ body{margin:0;overflow:hidden;background:#1a120b;font-family:Arial,sans-serif;us
 .ammo-icon{display:flex;gap:2px;align-items:flex-end;height:16px}
 .bullet{width:5px;height:16px;background:linear-gradient(to bottom,#ffd700 25%,#b8860b 25%,#b8860b 100%);border-radius:2px 2px 1px 1px;border:1px solid #8b6914;box-shadow:0 0 3px rgba(255,215,0,.3)}
 
-/* === FIX: Мобильная версия — панели вниз на 50% высоты, ширина /1.3 === */
 @media (max-width:800px){
 .hud-panel{
     transform:translateY(50%);
@@ -38,9 +36,7 @@ body{margin:0;overflow:hidden;background:#1a120b;font-family:Arial,sans-serif;us
     min-width:84px;
 }
 }
-/* ======================================================================= */
 
-/* Тонкий белый прицел: крест + окружность (1.5px) */
 #crosshair{position:absolute;top:50%;left:50%;width:40px;height:40px;transform:translate(-50%,-50%);pointer-events:none;border:1.5px solid #ffffff;border-radius:50%;opacity:.95;box-shadow:0 0 4px rgba(0,0,0,.6)}
 #crosshair::before,#crosshair::after{content:'';position:absolute;background:#ffffff}
 #crosshair::before{top:50%;left:0;width:100%;height:1.5px;transform:translateY(-50%)}
@@ -50,7 +46,6 @@ body{margin:0;overflow:hidden;background:#1a120b;font-family:Arial,sans-serif;us
 .menu-btn{position:absolute;bottom:calc(115px + env(safe-area-inset-bottom));left:30px;width:60px;height:60px;border-radius:50%;color:#fff;font-size:26px;display:flex;align-items:center;justify-content:center;pointer-events:auto;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);cursor:pointer;-webkit-tap-highlight-color:transparent;z-index:15;box-shadow:0 4px 15px rgba(0,0,0,.5);border:2px solid rgba(255,255,255,0.25);transition:all .2s;background:rgba(92,58,30,0.5)}
 .menu-btn:active{transform:scale(.9);background:rgba(139,0,0,0.6)}
 
-/* === ИЗМЕНЕНИЯ ЗДЕСЬ === */
 .move-btn{
     position:absolute;
     bottom:calc(30px + env(safe-area-inset-bottom));
@@ -75,9 +70,8 @@ body{margin:0;overflow:hidden;background:#1a120b;font-family:Arial,sans-serif;us
     box-shadow:0 4px 15px rgba(0,0,0,.5);
     border:3px solid #8b5a2b;
     transition:all .2s;
-    touch-action:manipulation; /* FIX: позволяет click на мобильных */
+    touch-action:manipulation;
 }
-/* ===================== */
 
 .move-btn.go{background:rgba(0,139,0,.5)}
 .move-btn.stop{background:rgba(139,0,0,.4)}
@@ -194,7 +188,6 @@ let isMuted=false;
 let wasPlayingBeforeHide=false;
 function handleVisibilityChange(isHidden){if(isHidden){wasPlayingBeforeHide=radioPlaying&&!isMuted;if(radioHeavyweight)radioHeavyweight.pause();if(radioDark)radioDark.pause();if(ax&&ax.state==='running')ax.suspend()}else{if(wasPlayingBeforeHide&&!isMuted){if(radioHeavyweight)radioHeavyweight.play().catch(()=>{});if(radioDark)radioDark.play().catch(()=>{});if(ax&&ax.state==='suspended')ax.resume()}}}
 
-// === ПРАВИЛЬНАЯ ИНТЕГРАЦИЯ РЕКЛАМЫ VK ===
 function preloadAds(){
     if(isVkEnvironment&&vkBridge){
         vkBridge.send('VKWebAppCheckNativeAds',{ad_format:'interstitial'})
@@ -224,36 +217,35 @@ function showVkAd(){
 function vkShare(t){if(!isVkEnvironment||!vkBridge)return;vkBridge.send('VKWebAppShare',{text:t}).catch(()=>{})}
 function vkTapticFeedback(t='light'){if(!isVkEnvironment||!vkBridge)return;vkBridge.send('VKWebAppTapticFeedback',{type:t}).catch(()=>{})}
 
-/* === FIX: Сохранение и загрузка прогресса === */
-function saveProgress(){
-    const data=JSON.stringify({killed:killed,gold:pl.g});
+/* === Сохранение ТОЛЬКО золота === */
+function saveGoldProgress(){
+    const data=JSON.stringify({gold:pl.g});
     if(isVkEnvironment&&vkBridge){
-        vkBridge.send('VKWebAppStorageSet',{key:'croc_hunter_progress',value:data}).catch(()=>{});
+        vkBridge.send('VKWebAppStorageSet',{key:'croc_hunter_gold',value:data}).catch(()=>{});
     }
-    try{localStorage.setItem('croc_hunter_progress',data)}catch(e){}
+    try{localStorage.setItem('croc_hunter_gold',data)}catch(e){}
 }
-function loadProgress(){
+function loadGoldProgress(){
     return new Promise((resolve)=>{
         if(isVkEnvironment&&vkBridge){
-            vkBridge.send('VKWebAppStorageGet',{keys:['croc_hunter_progress']})
+            vkBridge.send('VKWebAppStorageGet',{keys:['croc_hunter_gold']})
             .then((data)=>{
                 if(data&&data.keys&&data.keys.length>0&&data.keys[0].value){
                     try{resolve(JSON.parse(data.keys[0].value))}catch(e){resolve(null)}
                 }else{
-                    try{const d=localStorage.getItem('croc_hunter_progress');resolve(d?JSON.parse(d):null)}catch(e){resolve(null)}
+                    try{const d=localStorage.getItem('croc_hunter_gold');resolve(d?JSON.parse(d):null)}catch(e){resolve(null)}
                 }
             })
             .catch(()=>{
-                try{const d=localStorage.getItem('croc_hunter_progress');resolve(d?JSON.parse(d):null)}catch(e){resolve(null)}
+                try{const d=localStorage.getItem('croc_hunter_gold');resolve(d?JSON.parse(d):null)}catch(e){resolve(null)}
             });
         }else{
-            try{const d=localStorage.getItem('croc_hunter_progress');resolve(d?JSON.parse(d):null)}catch(e){resolve(null)}
+            try{const d=localStorage.getItem('croc_hunter_gold');resolve(d?JSON.parse(d):null)}catch(e){resolve(null)}
         }
     });
 }
-/* ============================================ */
+/* ================================= */
 
-// C.fr изменён с 0.15 на 0.1, чтобы позволить 8 выстрелов в секунду (125мс)
 const C={ms:100,ws:200,tc:125,rc:90,crc:50,mv:4,fr:0.1,bs:120,dd:190};
 const isMob=/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)||innerWidth<800;
 const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -265,7 +257,6 @@ const DARK_URL='https://ice1.somafm.com/darkzone-128-mp3';
 const CLEARING_RADIUS=8;
 let corpses=[],coinsSpawnedThisNight=false;
 
-// Очередь автомата: 8 выстрелов в секунду = 125 мс
 let isLeftMouseDown=false;
 let isRightMouseDown=false;
 let isTwoFingersTouching=false;
@@ -297,7 +288,6 @@ function toggleMute(){isMuted=!isMuted;const btn=document.getElementById('musicB
 function toggleRadio(){initAudio();radioManualOverride=true;const btn=document.getElementById('musicBtn');if(!radioHeavyweight)radioHeavyweight=createAudioElement(HEAVYWEIGHT_URL);if(!radioDark)radioDark=createAudioElement(DARK_URL);if(!radioPlaying){radioHeavyweight.play().catch(()=>{});radioDark.play().catch(()=>{});radioPlaying=true;btn.classList.add('playing');sM('pickup-msg','🎵 REGGAE RADIO 🎵');updateMusicVolumes();if(isMuted){btn.innerHTML='🔇';btn.classList.remove('playing');if(radioHeavyweight)radioHeavyweight.pause();if(radioDark)radioDark.pause();if(ax&&ax.state==='running')ax.suspend()}}else{radioHeavyweight.pause();radioDark.pause();radioPlaying=false;btn.classList.remove('playing');sM('pickup-msg','🔇 ЗВУК ВЫКЛ')}}
 function updateMusicVolumes(){if(!radioPlaying||radioManualOverride||isMuted)return;if(!radioHeavyweight||!radioDark)return;const px=cam.position.x,pz=cam.position.z;const dist=Math.sqrt(px*px+pz*pz);const maxDist=C.ms/2;const normDist=Math.min(dist/maxDist,1);const posVol=1.0-normDist*0.9;const baseMusicVol=0.5*posVol;const isMorning=gt>=0&&gt<30/190;const isDay=gt>=30/190&&gt<50/190;const isEvening=gt>=50/190&&gt<100/190;const isNight=gt>=100/190;let hwVol=0,dkVol=0;if(isMorning){let fv=0;if(morningStartTime>0){const el=(performance.now()-morningStartTime)/1000;if(el<5)fv=0;else if(el<20)fv=baseMusicVol*((el-5)/15);else fv=baseMusicVol}hwVol=fv;dkVol=0}else if(isDay){hwVol=baseMusicVol;dkVol=0}else if(isEvening){const t=(gt-50/190)/(50/190);hwVol=baseMusicVol*(1-t);dkVol=baseMusicVol*t}else if(isNight){const timeUntilMorning=1-gt;const secUntilMorning=timeUntilMorning*C.dd;if(secUntilMorning<=10)dkVol=baseMusicVol*(secUntilMorning/10);else dkVol=baseMusicVol;hwVol=0}try{radioHeavyweight.volume=hwVol;radioDark.volume=dkVol}catch(e){}}
 function startDefaultRadio(){initAudio();if(!radioHeavyweight)radioHeavyweight=createAudioElement(HEAVYWEIGHT_URL);if(!radioDark)radioDark=createAudioElement(DARK_URL);radioHeavyweight.play().catch(()=>{});radioDark.play().catch(()=>{});radioPlaying=true;document.getElementById('musicBtn').classList.add('playing');updateMusicVolumes();if(isMuted){document.getElementById('musicBtn').innerHTML='🔇';document.getElementById('musicBtn').classList.remove('playing');if(radioHeavyweight)radioHeavyweight.pause();if(radioDark)radioDark.pause();if(ax&&ax.state==='running')ax.suspend()}}
-/* === FIX: Остановка музыки при проигрыше/победе === */
 function stopGameMusic(){
     if(radioHeavyweight)radioHeavyweight.pause();
     if(radioDark)radioDark.pause();
@@ -306,10 +296,8 @@ function stopGameMusic(){
     btn.classList.remove('playing');
     btn.innerHTML='🎵';
 }
-/* ================================================== */
 function sfxShoot(){if(!ax||isMuted)return;try{const t=ax.currentTime;const bs1=Math.floor(ax.sampleRate*0.15),buf1=ax.createBuffer(1,bs1,ax.sampleRate),d1=buf1.getChannelData(0);for(let i=0;i<bs1;i++)d1[i]=(Math.random()*2-1);const s1=ax.createBufferSource();s1.buffer=buf1;const f1=ax.createBiquadFilter();f1.type='bandpass';f1.frequency.value=150;f1.Q.value=1;const g1=ax.createGain();g1.gain.setValueAtTime(0.8,t);g1.gain.exponentialRampToValueAtTime(0.001,t+0.15);s1.connect(f1);f1.connect(g1);g1.connect(ax.destination);s1.start(t);s1.stop(t+0.15);const osc=ax.createOscillator();osc.type='sine';osc.frequency.setValueAtTime(35,t);osc.frequency.exponentialRampToValueAtTime(20,t+1.0);const g2=ax.createGain();g2.gain.setValueAtTime(8.0,t);g2.gain.exponentialRampToValueAtTime(0.001,t+1.0);osc.connect(g2);g2.connect(ax.destination);osc.start(t);osc.stop(t+1.0);}catch(e){}}
 
-// Более низкий и медленный звук умирающего крокодила (тембр в 2 раза ниже, громкость в 2 раза выше)
 function sfxCrocDeath(){if(!ax||isMuted)return;try{const t=ax.currentTime;const duration=6.5;const osc=ax.createOscillator();osc.type='sawtooth';osc.frequency.setValueAtTime(10,t);osc.frequency.exponentialRampToValueAtTime(4,t+duration);const vibrato=ax.createOscillator();vibrato.type='sine';vibrato.frequency.value=1.2;const vibratoGain=ax.createGain();vibratoGain.gain.value=3;vibrato.connect(vibratoGain);vibratoGain.connect(osc.frequency);const oscGain=ax.createGain();oscGain.gain.setValueAtTime(1.1,t);oscGain.gain.exponentialRampToValueAtTime(0.001,t+duration);const filter=ax.createBiquadFilter();filter.type='lowpass';filter.frequency.value=500;filter.Q.value=2;osc.connect(filter);filter.connect(oscGain);oscGain.connect(ax.destination);osc.start(t);vibrato.start(t);osc.stop(t+duration+0.1);vibrato.stop(t+duration+0.1);const bs=Math.floor(ax.sampleRate*duration),buf=ax.createBuffer(1,bs,ax.sampleRate),d=buf.getChannelData(0);for(let i=0;i<bs;i++)d[i]=(Math.random()*2-1);const noiseSource=ax.createBufferSource();noiseSource.buffer=buf;const noiseFilter=ax.createBiquadFilter();noiseFilter.type='bandpass';noiseFilter.frequency.value=900;noiseFilter.Q.value=3;const noiseGain=ax.createGain();noiseGain.gain.setValueAtTime(0.08,t);noiseGain.gain.exponentialRampToValueAtTime(0.001,t+duration);noiseSource.connect(noiseFilter);noiseFilter.connect(noiseGain);noiseGain.connect(ax.destination);noiseSource.start(t);noiseSource.stop(t+duration+0.1);}catch(e){}}
 
 function sfxGold(){if(!ax||isMuted)return;try{const t=ax.currentTime;[1000,1200].forEach((freq,i)=>{const o=ax.createOscillator();o.type='sine';o.frequency.value=freq;const g=ax.createGain();g.gain.setValueAtTime(0,t+i*.04);g.gain.linearRampToValueAtTime(.075,t+i*.04+.02);g.gain.exponentialRampToValueAtTime(.001,t+i*.04+.4);o.connect(g);g.connect(ax.destination);o.start(t+i*.04);o.stop(t+i*.04+.45)})}catch(e){}}
@@ -384,13 +372,11 @@ function init(){
     musicBtn.addEventListener('click',e=>{e.stopPropagation();toggleMute()});
     menuBtn.addEventListener('click',e=>{e.stopPropagation();returnToMenu()});
 
-    // Предзагрузка рекламы при старте и каждые 30 секунд
     preloadAds();
     setInterval(preloadAds, 30000);
 
     if(isMob){
         moveBtn.style.display='flex';
-        /* === FIX: "ШАГАТЬ" на мобильных — используем touchend вместо click === */
         moveBtn.addEventListener('touchend',e=>{
             e.preventDefault();
             e.stopPropagation();
@@ -398,7 +384,6 @@ function init(){
             updateMoveBtn();
         });
         moveBtn.addEventListener('click',e=>{e.stopPropagation();isStopped=!isStopped;updateMoveBtn()});
-        /* ===================================================================== */
         document.addEventListener('touchstart',e=>{
             if(!ia||pl.d)return;
             if(e.target.closest('.cowboy-btn')||e.target.closest('.move-btn')||e.target.closest('.music-btn')||e.target.closest('.menu-btn'))return;
@@ -481,26 +466,23 @@ function cR(){const a=Math.random()*Math.PI*2,r=Math.random()*(C.ms/2-5),x=Math.
 function cCr(){const g=new THREE.Group(),bd=new THREE.Mesh(new THREE.BoxGeometry(.6,.5,2.2),mt.cs);bd.position.y=.4;bd.castShadow=true;g.add(bd);const bellyMesh=new THREE.Mesh(new THREE.BoxGeometry(.55,.1,2.1),mt.belly);bellyMesh.position.set(0,.15,0);g.add(bellyMesh);for(let i=0;i<8;i++){const spike=new THREE.Mesh(new THREE.ConeGeometry(.04,.15,4),mt.cs);spike.position.set(0,.65,-.8+i*.3);g.add(spike)}const hg=new THREE.Group();hg.position.set(0,.4,1.3);const sn=new THREE.Mesh(new THREE.BoxGeometry(.4,.25,.9),mt.cs);sn.position.z=.3;hg.add(sn);for(let i=-2;i<=2;i++){const tooth=new THREE.Mesh(new THREE.ConeGeometry(.015,.08,4),mt.tooth);tooth.position.set(i*.07,-.14,.65);tooth.rotation.x=Math.PI;hg.add(tooth)}const nL=new THREE.Mesh(new THREE.SphereGeometry(.02,6,6),mt.nostril);nL.position.set(-.08,.13,.75);hg.add(nL);const nR=nL.clone();nR.position.x=.08;hg.add(nR);const el=new THREE.Mesh(new THREE.SphereGeometry(.06,8,8),mt.ce);el.position.set(-.12,.15,.1);hg.add(el);const er=el.clone();er.position.x=.12;hg.add(er);const pl=new THREE.Mesh(new THREE.BoxGeometry(.015,.08,.02),mt.pu);pl.position.set(-.12,.15,.15);hg.add(pl);const pr=pl.clone();pr.position.x=.12;hg.add(pr);g.add(hg);const lg=[];[[-.35,.2,.7],[.35,.2,.7],[-.35,.2,-.7],[.35,.2,-.7]].forEach(p=>{const legG=new THREE.Group();legG.position.set(...p);const l=new THREE.Mesh(new THREE.CylinderGeometry(.08,.07,.35,6),mt.cs);l.castShadow=true;legG.add(l);for(let f=-1;f<=1;f++){const toe=new THREE.Mesh(new THREE.ConeGeometry(.02,.08,4),mt.cs);toe.position.set(f*.03,-.18,.05);toe.rotation.x=-.5;legG.add(toe)}lg.push(legG);g.add(legG)});const tg=new THREE.Group();tg.position.set(0,.4,-1.2);for(let i=0;i<7;i++){const seg=new THREE.Mesh(new THREE.BoxGeometry(.5-i*.06,.35-i*.04,.35),mt.cs);seg.position.z=-i*.3;seg.castShadow=true;tg.add(seg);if(i<5){const tS=new THREE.Mesh(new THREE.ConeGeometry(.03,.1,4),mt.cs);tS.position.set(0,.2,-i*.3);tg.add(tS)}}g.add(tg);g.userData={hp:1,sp:1.5,tp:'crocodile',rl:'croc',wp:Math.random()*Math.PI,lg,t:tg};return g}
 function uDN(d){gt+=d/C.dd;if(gt>=1){gt-=1;currentDay++;document.getElementById('day-display').innerText='День '+currentDay;lootSpawnedToday=false}const isMorning=gt>=0&&gt<30/190;const isDay=gt>=30/190&&gt<50/190;const isEvening=gt>=50/190&&gt<100/190;const isNight=gt>=100/190;if(isMorning&&morningStartTime<0)morningStartTime=performance.now();if(!isMorning)morningStartTime=-1;if(isMorning&&!lootSpawnedToday){spawnMorningLoot();lootSpawnedToday=true}if(isNight&&!coinsSpawnedThisNight){spawnNightCoins();coinsSpawnedThisNight=true}if(isMorning&&coinsSpawnedThisNight){for(let i=cr.length-1;i>=0;i--){if(cr[i].userData&&cr[i].userData.isNightCoin){scn.remove(cr[i]);cr.splice(i,1)}}coinsSpawnedThisNight=false}if(radioPlaying&&!radioManualOverride)updateMusicVolumes();let pn,si,mi,ai,st,sb,ex,so,shadowInt;sl.color.setHex(0xffffff);al.color.setHex(0xffffff);if(isMorning){const t=gt/(30/190);const tRev=1-t;pn='☀️ <span class="scl-time">УТРО</span>';const sunStartX=-100,sunStartY=2,sunStartZ=-100;const sunEndX=50,sunEndY=80,sunEndZ=30;sl.position.x=sunStartX+(sunEndX-sunStartX)*t;sl.position.y=sunStartY+(sunEndY-sunStartY)*t;sl.position.z=sunStartZ+(sunEndZ-sunStartZ)*t;sl.color.copy(new THREE.Color(0xff88aa).lerp(new THREE.Color(0xffffff),t));al.color.copy(new THREE.Color(0xffaacc).lerp(new THREE.Color(0xffffff),t));if(eveningSunLight){eveningSunLight.position.copy(sl.position);eveningSunLight.color.copy(sl.color);eveningSunLight.intensity=2.5*Math.sin(tRev*Math.PI)*(sl.intensity||1)}si=.6+t*.6;mi=Math.max(0,0.8*tRev);ai=.4+t*.2;st=new THREE.Color(0x2a1b3d).lerp(new THREE.Color(0x00aaff),t);sb=new THREE.Color(0xff88bb).lerp(new THREE.Color(0xffffff),t);ex=.7+t*.3;so=tRev;shadowInt=0.85+t*0.15}else if(isDay){pn='☀️ <span class="scl-time">ДЕНЬ</span>';sl.position.set(50,80,30);si=1.2;mi=0;ai=.6;st=new THREE.Color(0x00aaff);sb=new THREE.Color(0xaaddff);ex=1;so=0;shadowInt=0.85}else if(isEvening){const t=(gt-50/190)/(50/190);const sunStartX=50,sunStartY=80,sunStartZ=30;const sunEndX=-100,sunEndY=2,sunEndZ=-100;sl.position.x=sunStartX+(sunEndX-sunStartX)*t;sl.position.y=sunStartY+(sunEndY-sunStartY)*t;sl.position.z=sunStartZ+(sunEndZ-sunStartZ)*t;sl.color.copy(new THREE.Color(0xffffff).lerp(new THREE.Color(0xff88aa),t));al.color.copy(new THREE.Color(0xffffff).lerp(new THREE.Color(0xffaacc),t));if(eveningSunLight){eveningSunLight.position.copy(sl.position);eveningSunLight.color.copy(sl.color);eveningSunLight.intensity=sl.intensity*(0.5+t*1.0)}pn='🌇 <span class="scl-time">ВЕЧЕР</span>';si=1.2-t*.4;mi=t*.5;ai=.6-t*.2;st=new THREE.Color(0x00aaff).lerp(new THREE.Color(0x2a1b3d),t);sb=new THREE.Color(0xffffff).lerp(new THREE.Color(0xff88bb),t);ex=1-t*.2;so=t*.5;shadowInt=0.85+t*0.15}else{const t=(gt-100/190)/(90/190);sl.position.set(-100,-20,-100);sl.color.setHex(0xffffff);al.color.setHex(0x4466aa);pn='🌙 <span class="scl-time">НОЧЬ</span>';si=.1;mi=.8;ai=.15;st=new THREE.Color(0x112244).lerp(new THREE.Color(0x0a1525),t*.5);sb=new THREE.Color(0xff6633).lerp(new THREE.Color(0x1a2535),t*.5);ex=.4;so=1;shadowInt=1.0}sl.intensity=si;ml.intensity=mi;al.intensity=ai;rnd.toneMappingExposure=ex;sd.material.uniforms.tc.value.copy(st);sd.material.uniforms.bc.value.copy(sb);sm.material.opacity=so;if(sl.shadow)sl.shadow.intensity=shadowInt;if(ml.shadow)ml.shadow.intensity=shadowInt;document.getElementById('time-display').innerHTML=pn;let targetGrassMat=mt.grassDay;if(isNight)targetGrassMat=mt.grassNight;else if(isEvening)targetGrassMat=mt.grassEvening;else if(isMorning)targetGrassMat=mt.grassMorning;if(targetGrassMat!==lastGrassMat){scn.traverse(o=>{if(o.isMesh&&o.userData.isGrass)o.material=targetGrassMat});lastGrassMat=targetGrassMat}}
 function returnToMenu(){ia=false;pl.d=true;isLeftMouseDown=false;isRightMouseDown=false;isTwoFingersTouching=false;stopBurst();if(radioHeavyweight)radioHeavyweight.pause();if(radioDark)radioDark.pause();if(ax)ax.suspend();document.getElementById('overlay').style.display='flex';document.getElementById('win-screen').style.display='none';document.getElementById('lose-screen').style.display='none';const startBtn=document.getElementById('startBtn');startBtn.disabled=false;startBtn.innerText='НАЧАТЬ ОХОТУ';document.getElementById('loading-bar').style.width='0%';let loadProgress=0;const loadInterval=setInterval(()=>{loadProgress+=Math.random()*15+5;if(loadProgress>=100){loadProgress=100;clearInterval(loadInterval);startBtn.disabled=false}document.getElementById('loading-bar').style.width=loadProgress+'%'},30)}
-window.sG=function(){document.getElementById('overlay').style.display='none';document.getElementById('win-screen').style.display='none';document.getElementById('lose-screen').style.display='none';ia=true;pl.hp=100;pl.a=50;pl.d=false;isStopped=true;yaw=0;pitch=0;gt=0;currentDay=1;lastLootDay=-1;lootSpawnedToday=false;radioManualOverride=false;morningStartTime=performance.now();coinsSpawnedThisNight=false;isLeftMouseDown=false;isRightMouseDown=false;isTwoFingersTouching=false;stopBurst();corpses.forEach(c=>{if(c.userData&&c.userData.flies)scn.remove(c.userData.flies);scn.remove(c)});corpses=[];cam.position.set(0,2,15);updateCamRot();updateMoveBtn();initAudio();startDefaultRadio();spawnMorningLoot();en.forEach(e=>scn.remove(e.mesh));en=[];db.forEach(b=>scn.remove(b));db=[];
-/* === FIX: Загрузка сохранённого прогресса === */
-loadProgress().then((saved)=>{
-    if(saved){
-        killed=saved.killed||0;
-        pl.g=saved.gold||0;
+window.sG=function(){document.getElementById('overlay').style.display='none';document.getElementById('win-screen').style.display='none';document.getElementById('lose-screen').style.display='none';ia=true;pl.hp=100;pl.a=50;pl.d=false;killed=0;isStopped=true;yaw=0;pitch=0;gt=0;currentDay=1;lastLootDay=-1;lootSpawnedToday=false;radioManualOverride=false;morningStartTime=performance.now();coinsSpawnedThisNight=false;isLeftMouseDown=false;isRightMouseDown=false;isTwoFingersTouching=false;stopBurst();corpses.forEach(c=>{if(c.userData&&c.userData.flies)scn.remove(c.userData.flies);scn.remove(c)});corpses=[];cam.position.set(0,2,15);updateCamRot();updateMoveBtn();initAudio();startDefaultRadio();spawnMorningLoot();en.forEach(e=>scn.remove(e.mesh));en=[];db.forEach(b=>scn.remove(b));db=[];
+/* === Загрузка ТОЛЬКО золота; крокодилы всегда с 0 === */
+loadGoldProgress().then((saved)=>{
+    if(saved&&typeof saved.gold==='number'){
+        pl.g=saved.gold;
     }else{
-        killed=0;
         pl.g=0;
     }
-    document.getElementById('kill-display').innerText=killed+'/'+totalKills;
     uH();
     sCr();
 });
-/* ============================================= */
-document.getElementById('day-display').innerText='День 1';if(!isMob)document.body.requestPointerLock()};
+/* ===================================================== */
+document.getElementById('day-display').innerText='День 1';document.getElementById('kill-display').innerText='0/'+totalKills;if(!isMob)document.body.requestPointerLock()};
 function sCr(){const active=en.length,toSpawn=Math.min(3-active,C.crc-killed);for(let i=0;i<toSpawn;i++){const m=cCr();const a=Math.random()*Math.PI*2,r=C.ms/2+5+Math.random()*15;m.position.set(Math.cos(a)*r,-.2,Math.sin(a)*r);scn.add(m);en.push({mesh:m,...m.userData})}}
 function sM(id,t){const e=document.getElementById(id);e.innerHTML=t;e.style.opacity=1;setTimeout(()=>e.style.opacity=0,1500)}
 function cP(p,c,n){for(let i=0;i<n;i++){const m=new THREE.Mesh(new THREE.BoxGeometry(.1,.1,.1),new THREE.MeshBasicMaterial({color:c}));m.position.copy(p);m.userData={v:new THREE.Vector3((Math.random()-.5)*6,Math.random()*6,(Math.random()-.5)*6),l:.6};scn.add(m);pa.push(m)}}
-function upd(d){if(pl.d)return;uDN(d);updateAmbient(d);updateFlies(d);updateVoodoo(d,gt);while(corpses.length>MAX_CORPSES){const old=corpses.shift();if(old.userData&&old.userData.flies)scn.remove(old.userData.flies);scn.remove(old)}for(let i=corpses.length-1;i>=0;i--){if(currentDay>corpses[i].userData.spawnDay){if(corpses[i].userData.flies)scn.remove(corpses[i].userData.flies);scn.remove(corpses[i]);corpses.splice(i,1)}}const isNight=gt>=100/190;if(isNight&&en.length<3)sCr();if(!isNight&&en.length>0){en.forEach(e=>scn.remove(e.mesh));en=[]}if(!isStopped){const fwd=new THREE.Vector3(0,0,-1);fwd.applyAxisAngle(new THREE.Vector3(0,1,0),yaw);cam.position.addScaledVector(fwd,C.mv*d)}cam.position.y=2+Math.sin(performance.now()*.003)*.005;if(gn)gn.position.y=-.35+Math.sin(performance.now()*.003)*.005;const dc=Math.sqrt(cam.position.x**2+cam.position.z**2);if(dc>C.ms/2-2){const a=Math.atan2(cam.position.z,cam.position.x);cam.position.x=Math.cos(a)*(C.ms/2-2);cam.position.z=Math.sin(a)*(C.ms/2-2)}cr.forEach(c=>{if(!c.userData.c&&cam.position.distanceTo(c.position)<2){c.userData.c=true;c.visible=false;if(c.userData.t==='gold'){pl.g+=c.userData.ga;sM('pickup-msg','+'+c.userData.ga+' <span class="scl-gold">ЗОЛОТО</span>');sfxGold();saveProgress()}else{pl.a+=c.userData.ga;sM('pickup-msg','+'+c.userData.ga+' <span class="scl-ammo">ПАТРОНЫ</span>');sfxAmmo()}uH()}});for(let i=bl.length-1;i>=0;i--){const b=bl[i];b.position.addScaledVector(b.userData.v,d);b.userData.l-=d;let h=false;for(let j=en.length-1;j>=0;j--){const e=en[j];if(b.position.distanceTo(e.mesh.position)<1.2){cP(e.mesh.position,0x1a3a1a,6);sfxCrocDeath();const bd=e.mesh.clone();bd.rotation.set(Math.PI,0,0);bd.position.y=.35;bd.userData.spawnDay=currentDay;scn.add(bd);const flies=createFlies(bd.position);bd.userData.flies=flies;corpses.push(bd);scn.remove(e.mesh);en.splice(j,1);killed++;h=true;document.getElementById('kill-display').innerText=killed+'/'+totalKills;vkTapticFeedback('medium');saveProgress();if(killed>=totalKills){pl.d=true;stopGameMusic();document.getElementById('win-gold-display').innerHTML='<span class="scl-gold">ЗОЛОТО</span>: '+pl.g;document.getElementById('win-screen').style.display='flex';buildWinGoldMountain();showVkAd();}break}}if(h||b.userData.l<=0){scn.remove(b);bl.splice(i,1)}}en.forEach(e=>{e.wp+=d*e.sp;e.lg.forEach((l,i)=>l.rotation.x=Math.sin(e.wp+i*Math.PI/2)*.4);const tp=new THREE.Vector3().subVectors(cam.position,e.mesh.position);tp.y=0;const ds=tp.length();if(ds>1.2){tp.normalize();e.mesh.position.addScaledVector(tp,e.sp*d);e.mesh.lookAt(cam.position.x,e.mesh.position.y,cam.position.z)}else{pl.hp-=15*d;sfxHurt();uH();vkTapticFeedback('heavy');if(pl.hp<=0){pl.d=true;stopGameMusic();saveProgress();document.getElementById('lose-desc').innerHTML='<span class="scl-gold">ЗОЛОТО</span>: '+pl.g+'<br>Крокодилы выиграли.';document.getElementById('lose-screen').style.display='flex';showVkAd()}}});for(let i=pa.length-1;i>=0;i--){const p=pa[i];p.position.addScaledVector(p.userData.v,d);p.userData.v.y-=15*d;p.userData.l-=d;p.scale.multiplyScalar(.9);if(p.userData.l<=0||p.position.y<0){scn.remove(p);pa.splice(i,1)}}}
+function upd(d){if(pl.d)return;uDN(d);updateAmbient(d);updateFlies(d);updateVoodoo(d,gt);while(corpses.length>MAX_CORPSES){const old=corpses.shift();if(old.userData&&old.userData.flies)scn.remove(old.userData.flies);scn.remove(old)}for(let i=corpses.length-1;i>=0;i--){if(currentDay>corpses[i].userData.spawnDay){if(corpses[i].userData.flies)scn.remove(corpses[i].userData.flies);scn.remove(corpses[i]);corpses.splice(i,1)}}const isNight=gt>=100/190;if(isNight&&en.length<3)sCr();if(!isNight&&en.length>0){en.forEach(e=>scn.remove(e.mesh));en=[]}if(!isStopped){const fwd=new THREE.Vector3(0,0,-1);fwd.applyAxisAngle(new THREE.Vector3(0,1,0),yaw);cam.position.addScaledVector(fwd,C.mv*d)}cam.position.y=2+Math.sin(performance.now()*.003)*.005;if(gn)gn.position.y=-.35+Math.sin(performance.now()*.003)*.005;const dc=Math.sqrt(cam.position.x**2+cam.position.z**2);if(dc>C.ms/2-2){const a=Math.atan2(cam.position.z,cam.position.x);cam.position.x=Math.cos(a)*(C.ms/2-2);cam.position.z=Math.sin(a)*(C.ms/2-2)}cr.forEach(c=>{if(!c.userData.c&&cam.position.distanceTo(c.position)<2){c.userData.c=true;c.visible=false;if(c.userData.t==='gold'){pl.g+=c.userData.ga;sM('pickup-msg','+'+c.userData.ga+' <span class="scl-gold">ЗОЛОТО</span>');sfxGold();saveGoldProgress()}else{pl.a+=c.userData.ga;sM('pickup-msg','+'+c.userData.ga+' <span class="scl-ammo">ПАТРОНЫ</span>');sfxAmmo()}uH()}});for(let i=bl.length-1;i>=0;i--){const b=bl[i];b.position.addScaledVector(b.userData.v,d);b.userData.l-=d;let h=false;for(let j=en.length-1;j>=0;j--){const e=en[j];if(b.position.distanceTo(e.mesh.position)<1.2){cP(e.mesh.position,0x1a3a1a,6);sfxCrocDeath();const bd=e.mesh.clone();bd.rotation.set(Math.PI,0,0);bd.position.y=.35;bd.userData.spawnDay=currentDay;scn.add(bd);const flies=createFlies(bd.position);bd.userData.flies=flies;corpses.push(bd);scn.remove(e.mesh);en.splice(j,1);killed++;h=true;document.getElementById('kill-display').innerText=killed+'/'+totalKills;vkTapticFeedback('medium');if(killed>=totalKills){pl.d=true;stopGameMusic();saveGoldProgress();document.getElementById('win-gold-display').innerHTML='<span class="scl-gold">ЗОЛОТО</span>: '+pl.g;document.getElementById('win-screen').style.display='flex';buildWinGoldMountain();showVkAd();}break}}if(h||b.userData.l<=0){scn.remove(b);bl.splice(i,1)}}en.forEach(e=>{e.wp+=d*e.sp;e.lg.forEach((l,i)=>l.rotation.x=Math.sin(e.wp+i*Math.PI/2)*.4);const tp=new THREE.Vector3().subVectors(cam.position,e.mesh.position);tp.y=0;const ds=tp.length();if(ds>1.2){tp.normalize();e.mesh.position.addScaledVector(tp,e.sp*d);e.mesh.lookAt(cam.position.x,e.mesh.position.y,cam.position.z)}else{pl.hp-=15*d;sfxHurt();uH();vkTapticFeedback('heavy');if(pl.hp<=0){pl.d=true;stopGameMusic();saveGoldProgress();document.getElementById('lose-desc').innerHTML='<span class="scl-gold">ЗОЛОТО</span>: '+pl.g+'<br>Крокодилы выиграли.';document.getElementById('lose-screen').style.display='flex';showVkAd()}}});for(let i=pa.length-1;i>=0;i--){const p=pa[i];p.position.addScaledVector(p.userData.v,d);p.userData.v.y-=15*d;p.userData.l-=d;p.scale.multiplyScalar(.9);if(p.userData.l<=0||p.position.y<0){scn.remove(p);pa.splice(i,1)}}}
 function uH(){document.getElementById('hp-val').innerText=Math.max(0,Math.floor(pl.hp))+'%';document.getElementById('gold-val').innerText=pl.g+' oz';document.getElementById('ammo-val').innerText=pl.a;document.getElementById('hp-val').style.color=pl.hp>30?'#8b0000':'#ff0000'}
 function onR(){cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();rnd.setSize(innerWidth,innerHeight)}
 function anim(){requestAnimationFrame(anim);const t=performance.now(),d=Math.min((t-pt)/1000,.1);pt=t;if(ia&&!pl.d)upd(d);rnd.render(scn,cam)}
