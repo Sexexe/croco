@@ -31,10 +31,29 @@ body{margin:0;overflow:hidden;background:#1a120b;font-family:Arial,sans-serif;us
 
 @media (max-width:800px){
 .hud-panel{
-    transform:translateY(50%);
+    transform:translateY(43%);
     max-width:107px;
     min-width:84px;
+    min-height:82px;
+    max-height:82px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    padding:6px 4px;
 }
+.hud-row{
+    margin:2px 0;
+    min-height:20px;
+    height:20px;
+    font-size:13px;
+}
+.hud-label{font-size:14px}
+.hud-value{font-size:14px}
+.day-val{font-size:13px}
+.gold-val{font-size:13px}
+.ammo-icon{height:12px}
+.bullet{width:4px;height:12px}
 }
 
 #crosshair{position:absolute;top:50%;left:50%;width:40px;height:40px;transform:translate(-50%,-50%);pointer-events:none;border:1.5px solid #ffffff;border-radius:50%;opacity:.95;box-shadow:0 0 4px rgba(0,0,0,.6)}
@@ -315,9 +334,9 @@ body{margin:0;overflow:hidden;background:#1a120b;font-family:Arial,sans-serif;us
 </div>
 <div id="pickup-msg"></div>
 <div id="crosshair"></div>
-<div class="menu-btn" id="menuBtn" title="Вернуться в меню">⚙️</div>
+<div class="menu-btn" id="menuBtn" title="Вернуться в меню">️</div>
 <div class="move-btn go" id="moveBtn">ШАГАТЬ</div>
-<div class="music-btn" id="musicBtn" title="Вкл/Выкл весь звук">🎵</div>
+<div class="music-btn" id="musicBtn" title="Вкл/Выкл весь звук"></div>
 </div>
 
 <div id="overlay" class="poster-screen">
@@ -331,7 +350,7 @@ body{margin:0;overflow:hidden;background:#1a120b;font-family:Arial,sans-serif;us
 <div id="win-screen" class="poster-screen">
 <div class="wanted-poster">
 <h1 class="main-title">ПОЗДРАВЛЯЕМ</h1>
-<div class="subtitle" style="font-family:'Rye',serif;color:#3a2010;font-size:clamp(14px,2.5vw,20px);margin:0 0 20px 0;text-transform:uppercase;letter-spacing:3px;border-bottom:2px solid #8b5a2b;padding-bottom:15px;display:inline-block">🇯🇲 Ямайка свободна 🇯</div>
+<div class="subtitle" style="font-family:'Rye',serif;color:#3a2010;font-size:clamp(14px,2.5vw,20px);margin:0 0 20px 0;text-transform:uppercase;letter-spacing:3px;border-bottom:2px solid #8b5a2b;padding-bottom:15px;display:inline-block">🇯 Ямайка свободна 🇯</div>
 <div id="win-canvas-container"></div>
 <div id="win-gold-display"></div>
 <div class="desc">Все 50 крокодилов уничтожены!<br>Ты настоящий герой острова!</div>
@@ -454,17 +473,17 @@ const mt={lD:new THREE.MeshStandardMaterial({color:0x2d5a2d,roughness:.8,flatSha
 let ax=null;
 function initAudio(){if(ax)return;try{const AC=window.AudioContext||window.webkitAudioContext;ax=new AC();if(ax.state==='suspended'){const resume=()=>{ax.resume();document.removeEventListener('touchstart',resume);document.removeEventListener('click',resume);document.removeEventListener('mousedown',resume)};document.addEventListener('touchstart',resume);document.addEventListener('click',resume);document.addEventListener('mousedown',resume)}}catch(e){}}
 function createAudioElement(url){const a=new Audio();a.loop=true;a.preload='auto';a.src=url;a.setAttribute('playsinline','');if(isIOS)a.setAttribute('x-webkit-airplay','allow');return a}
-function toggleMute(){isMuted=!isMuted;const btn=document.getElementById('musicBtn');if(isMuted){btn.innerHTML='🔇';btn.classList.remove('playing');if(radioHeavyweight)radioHeavyweight.pause();if(radioDark)radioDark.pause();if(ax&&ax.state==='running')ax.suspend()}else{btn.innerHTML='';if(radioPlaying){btn.classList.add('playing');if(radioHeavyweight)radioHeavyweight.play().catch(()=>{});if(radioDark)radioDark.play().catch(()=>{})}if(ax&&ax.state==='suspended')ax.resume()}}
-function toggleRadio(){initAudio();radioManualOverride=true;const btn=document.getElementById('musicBtn');if(!radioHeavyweight)radioHeavyweight=createAudioElement(HEAVYWEIGHT_URL);if(!radioDark)radioDark=createAudioElement(DARK_URL);if(!radioPlaying){radioHeavyweight.play().catch(()=>{});radioDark.play().catch(()=>{});radioPlaying=true;btn.classList.add('playing');sM('pickup-msg',' REGGAE RADIO 🎵');updateMusicVolumes();if(isMuted){btn.innerHTML='';btn.classList.remove('playing');if(radioHeavyweight)radioHeavyweight.pause();if(radioDark)radioDark.pause();if(ax&&ax.state==='running')ax.suspend()}}else{radioHeavyweight.pause();radioDark.pause();radioPlaying=false;btn.classList.remove('playing');sM('pickup-msg','🔇 ЗВУК ВЫКЛ')}}
+function toggleMute(){isMuted=!isMuted;const btn=document.getElementById('musicBtn');if(isMuted){btn.innerHTML='';btn.classList.remove('playing');if(radioHeavyweight)radioHeavyweight.pause();if(radioDark)radioDark.pause();if(ax&&ax.state==='running')ax.suspend()}else{btn.innerHTML='🎵';if(radioPlaying){btn.classList.add('playing');if(radioHeavyweight)radioHeavyweight.play().catch(()=>{});if(radioDark)radioDark.play().catch(()=>{})}if(ax&&ax.state==='suspended')ax.resume()}}
+function toggleRadio(){initAudio();radioManualOverride=true;const btn=document.getElementById('musicBtn');if(!radioHeavyweight)radioHeavyweight=createAudioElement(HEAVYWEIGHT_URL);if(!radioDark)radioDark=createAudioElement(DARK_URL);if(!radioPlaying){radioHeavyweight.play().catch(()=>{});radioDark.play().catch(()=>{});radioPlaying=true;btn.classList.add('playing');sM('pickup-msg','🎵 REGGAE RADIO ');updateMusicVolumes();if(isMuted){btn.innerHTML='🔇';btn.classList.remove('playing');if(radioHeavyweight)radioHeavyweight.pause();if(radioDark)radioDark.pause();if(ax&&ax.state==='running')ax.suspend()}}else{radioHeavyweight.pause();radioDark.pause();radioPlaying=false;btn.classList.remove('playing');sM('pickup-msg','🔇 ЗВУК ВЫКЛ')}}
 function updateMusicVolumes(){if(!radioPlaying||radioManualOverride||isMuted)return;if(!radioHeavyweight||!radioDark)return;const px=cam.position.x,pz=cam.position.z;const dist=Math.sqrt(px*px+pz*pz);const maxDist=C.ms/2;const normDist=Math.min(dist/maxDist,1);const posVol=1.0-normDist*0.9;const baseMusicVol=0.5*posVol;const isMorning=gt>=0&&gt<30/190;const isDay=gt>=30/190&&gt<50/190;const isEvening=gt>=50/190&&gt<100/190;const isNight=gt>=100/190;let hwVol=0,dkVol=0;if(isMorning){let fv=0;if(morningStartTime>0){const el=(performance.now()-morningStartTime)/1000;if(el<5)fv=0;else if(el<20)fv=baseMusicVol*((el-5)/15);else fv=baseMusicVol}hwVol=fv;dkVol=0}else if(isDay){hwVol=baseMusicVol;dkVol=0}else if(isEvening){const t=(gt-50/190)/(50/190);hwVol=baseMusicVol*(1-t);dkVol=baseMusicVol*t}else if(isNight){const timeUntilMorning=1-gt;const secUntilMorning=timeUntilMorning*C.dd;if(secUntilMorning<=10)dkVol=baseMusicVol*(secUntilMorning/10);else dkVol=baseMusicVol;hwVol=0}try{radioHeavyweight.volume=hwVol;radioDark.volume=dkVol}catch(e){}}
-function startDefaultRadio(){initAudio();if(!radioHeavyweight)radioHeavyweight=createAudioElement(HEAVYWEIGHT_URL);if(!radioDark)radioDark=createAudioElement(DARK_URL);radioHeavyweight.play().catch(()=>{});radioDark.play().catch(()=>{});radioPlaying=true;document.getElementById('musicBtn').classList.add('playing');updateMusicVolumes();if(isMuted){document.getElementById('musicBtn').innerHTML='🔇';document.getElementById('musicBtn').classList.remove('playing');if(radioHeavyweight)radioHeavyweight.pause();if(radioDark)radioDark.pause();if(ax&&ax.state==='running')ax.suspend()}}
+function startDefaultRadio(){initAudio();if(!radioHeavyweight)radioHeavyweight=createAudioElement(HEAVYWEIGHT_URL);if(!radioDark)radioDark=createAudioElement(DARK_URL);radioHeavyweight.play().catch(()=>{});radioDark.play().catch(()=>{});radioPlaying=true;document.getElementById('musicBtn').classList.add('playing');updateMusicVolumes();if(isMuted){document.getElementById('musicBtn').innerHTML='';document.getElementById('musicBtn').classList.remove('playing');if(radioHeavyweight)radioHeavyweight.pause();if(radioDark)radioDark.pause();if(ax&&ax.state==='running')ax.suspend()}}
 function stopGameMusic(){
     if(radioHeavyweight)radioHeavyweight.pause();
     if(radioDark)radioDark.pause();
     radioPlaying=false;
     const btn=document.getElementById('musicBtn');
     btn.classList.remove('playing');
-    btn.innerHTML='';
+    btn.innerHTML='🎵';
 }
 function sfxShoot(){if(!ax||isMuted)return;try{const t=ax.currentTime;const bs1=Math.floor(ax.sampleRate*0.15),buf1=ax.createBuffer(1,bs1,ax.sampleRate),d1=buf1.getChannelData(0);for(let i=0;i<bs1;i++)d1[i]=(Math.random()*2-1);const s1=ax.createBufferSource();s1.buffer=buf1;const f1=ax.createBiquadFilter();f1.type='bandpass';f1.frequency.value=150;f1.Q.value=1;const g1=ax.createGain();g1.gain.setValueAtTime(0.8,t);g1.gain.exponentialRampToValueAtTime(0.001,t+0.15);s1.connect(f1);f1.connect(g1);g1.connect(ax.destination);s1.start(t);s1.stop(t+0.15);const osc=ax.createOscillator();osc.type='sine';osc.frequency.setValueAtTime(35,t);osc.frequency.exponentialRampToValueAtTime(20,t+1.0);const g2=ax.createGain();g2.gain.setValueAtTime(8.0,t);g2.gain.exponentialRampToValueAtTime(0.001,t+1.0);osc.connect(g2);g2.connect(ax.destination);osc.start(t);osc.stop(t+1.0);}catch(e){}}
 
