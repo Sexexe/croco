@@ -11,7 +11,8 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@700;800&family=Rye&display=swap');
 *{margin:0;padding:0;box-sizing:border-box}
-body{margin:0;overflow:hidden;background:#1a120b;font-family:Arial,sans-serif;user-select:none;-webkit-user-select:none;touch-action:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+html,body{width:100%;height:100%;margin:0;padding:0;overflow:hidden;background:#1a120b}
+body{font-family:Arial,sans-serif;user-select:none;-webkit-user-select:none;touch-action:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
 #ui-layer{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;z-index:10}
 #hud-top{padding:10px 15px;margin-top:7mm;display:flex;justify-content:space-between;align-items:flex-start;gap:15px;width:100%}
 .hud-panel{background:linear-gradient(to bottom,rgba(244,228,188,.92),rgba(232,213,163,.92));border:2px solid #8b5a2b;border-radius:6px;padding:10px 8px;box-shadow:0 3px 8px rgba(0,0,0,.5),inset 0 0 15px rgba(92,58,30,.15);position:relative;flex:1;max-width:140px;min-width:110px;text-align:center}
@@ -78,9 +79,6 @@ body{margin:0;overflow:hidden;background:#1a120b;font-family:Arial,sans-serif;us
 .play-btn:active:not(:disabled){transform:translateY(1px)}
 .play-btn:disabled{background:linear-gradient(to bottom,#444,#222)!important;cursor:not-allowed!important;opacity:.6!important;border-color:#555!important;color:#888!important;pointer-events:none!important;box-shadow:none!important}
 </style>
-<script type="importmap">
-{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}
-</script>
 </head>
 <body>
 <div id="ui-layer">
@@ -125,8 +123,8 @@ body{margin:0;overflow:hidden;background:#1a120b;font-family:Arial,sans-serif;us
 <button class="play-btn" id="playBtn">ИГРАТЬ</button>
 </div>
 </div>
-<script type="module">
-import*as THREE from'three';
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script>
 const vkBridge=window.vkBridge;let vkBridgeReady=false,isVkEnvironment=false;
 if(vkBridge){try{vkBridge.send('VKWebAppInit').then(()=>{vkBridgeReady=true;isVkEnvironment=true}).catch(()=>{isVkEnvironment=false});vkBridge.subscribe((event)=>{if(!event.detail||!event.detail.type)return;const{type}=event.detail;if(type==='VKWebAppViewHide'){handleVisibilityChange(true)}else if(type==='VKWebAppViewRestore'){handleVisibilityChange(false)}})}catch(e){}}
 document.addEventListener('visibilitychange',()=>{handleVisibilityChange(document.hidden)});
@@ -157,8 +155,7 @@ function showVkAd(){
     }
 }
 
-function vkShare(t){if(!isVkEnvironment||!vkBridge)return;vkBridge.send('VKWebAppShare',{text:t}).catch(()=>{})}
-function vkTapticFeedback(t='light'){if(!isVkEnvironment||!vkBridge)return;vkBridge.send('VKWebAppTapticFeedback',{type:t}).catch(()=>{})}
+const vkShare=t=>isVkEnvironment&&vkBridge?vkBridge.send('VKWebAppShare',{text:t}).catch(()=>{}):null;const vkTapticFeedback=(t='light')=>isVkEnvironment&&vkBridge?vkBridge.send('VKWebAppTapticFeedback',{type:t}).catch(()=>{}):null;
 
 function saveGoldProgress(){
     const data=JSON.stringify({gold:pl.g,missionLevel:missionLevel});
