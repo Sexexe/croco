@@ -134,29 +134,72 @@ let wasPlayingBeforeHide=false;
 function handleVisibilityChange(isHidden){if(isHidden){wasPlayingBeforeHide=radioPlaying&&!isMuted;if(radioHeavyweight)radioHeavyweight.pause();if(radioDark)radioDark.pause();if(radioParadise)radioParadise.pause();if(ax&&ax.state==='running')ax.suspend()}else{if(wasPlayingBeforeHide&&!isMuted){if(radioHeavyweight)radioHeavyweight.play().catch(()=>{});if(radioDark)radioDark.play().catch(()=>{});if(radioParadise)radioParadise.play().catch(()=>{});if(ax&&ax.state==='suspended')ax.resume()}}}
 
 function preloadAds(){
-    if(isVkEnvironment&&vkBridge){
-        vkBridge.send('VKWebAppCheckNativeAds',{ad_format:'interstitial'})
-        .then((data)=>{
-            if(data.result){console.log('Реклама предзагружена');}
-            else{console.log('Реклама не найдена');}
-        })
-        .catch((error)=>{console.log('Ошибка рекламы:',error);});
+    if(!isVkEnvironment||!vkBridge){
+        console.log('Предзагрузка: не VK окружение');
+        return;
     }
+    
+    console.log('Предзагрузка рекламы...');
+    
+    vkBridge.send('VKWebAppCheckNativeAds',{ad_format:'interstitial'})
+    .then((data)=>{
+        if(data&&data.result){
+            console.log('Реклама предзагружена успешно');
+        }else{
+            console.log('Реклама не готова к показу');
+        }
+    })
+    .catch((error)=>{
+        console.log('Ошибка предзагрузки:',error);
+    });
 }
+
+let lastAdShowTime=0;
+const MIN_AD_INTERVAL=30000;
 
 function showVkAd(){
     return new Promise((resolve)=>{
-        if(isVkEnvironment&&vkBridge){
-            vkBridge.send('VKWebAppShowNativeAds',{ad_format:'interstitial'})
-            .then((data)=>{
-                if(data.result){console.log('Реклама показана');preloadAds();}
-                else{console.log('Ошибка показа рекламы');}
-                resolve();
-            })
-            .catch((error)=>{console.log('Ошибка рекламы:',error);resolve();});
-        }else{
+        const now=Date.now();
+        
+        if(now-lastAdShowTime<MIN_AD_INTERVAL){
+            console.log('Слишком рано для рекламы, прошло:',now-lastAdShowTime,'мс');
             resolve();
+            return;
         }
+        
+        if(!isVkEnvironment||!vkBridge){
+            console.log('Не VK окружение');
+            resolve();
+            return;
+        }
+        
+        console.log('Попытка показать рекламу...');
+        
+        const timeout=setTimeout(()=>{
+            console.log('Таймаут рекламы');
+            resolve();
+        },3000);
+        
+        vkBridge.send('VKWebAppCheckNativeAds',{ad_format:'interstitial'})
+        .then(()=>{
+            return vkBridge.send('VKWebAppShowNativeAds',{ad_format:'interstitial'});
+        })
+        .then((data)=>{
+            clearTimeout(timeout);
+            if(data&&data.result){
+                console.log('Реклама показана успешно');
+                lastAdShowTime=now;
+                preloadAds();
+            }else{
+                console.log('Реклама не найдена или отклонена');
+            }
+            resolve();
+        })
+        .catch((error)=>{
+            clearTimeout(timeout);
+            console.log('Ошибка рекламы:',error);
+            resolve();
+        });
     });
 }
 
@@ -460,10 +503,12 @@ function showMissionSuccess(){
     startRadioParadise();
     saveGoldProgress();
     
-    // СНАЧАЛА показываем рекламу, ПОТОМ UI
-    showVkAd().then(()=>{
-        showSuccessUI();
-    });
+    // Задержка 500мс перед показом рекламы
+    setTimeout(()=>{
+        showVkAd().then(()=>{
+            showSuccessUI();
+        });
+    }, 500);
 }
 
 function showSuccessUI(){
@@ -685,8 +730,10 @@ function sCr(){const active=en.length,toSpawn=Math.min(3-active,C.crc-killed);fo
 function sM(id,t){const e=document.getElementById(id);e.innerHTML=t;e.style.opacity=1;setTimeout(()=>e.style.opacity=0,1500)}
 function cP(p,c,n){for(let i=0;i<n;i++){const m=new THREE.Mesh(new THREE.BoxGeometry(.1,.1,.1),new THREE.MeshBasicMaterial({color:c}));m.position.copy(p);m.userData={v:new THREE.Vector3((Math.random()-.5)*6,Math.random()*6,(Math.random()-.5)*6),l:.6};scn.add(m);pa.push(m)}}
 function upd(d){if(pl.d)return;uDN(d);updateAmbient(d);updateFlies(d);updateVoodoo(d,gt);while(corpses.length>MAX_CORPSES){const old=corpses.shift();if(old.userData&&old.userData.flies)scn.remove(old.userData.flies);scn.remove(old)}for(let i=corpses.length-1;i>=0;i--){if(currentDay>corpses[i].userData.spawnDay){if(corpses[i].userData.flies)scn.remove(corpses[i].userData.flies);scn.remove(corpses[i]);corpses.splice(i,1)}}const isNight=gt>=100/190;if(isNight&&en.length<3)sCr();if(!isNight&&en.length>0){en.forEach(e=>scn.remove(e.mesh));en=[]}if(!isStopped){const fwd=new THREE.Vector3(0,0,-1);fwd.applyAxisAngle(new THREE.Vector3(0,1,0),yaw);cam.position.addScaledVector(fwd,C.mv*d)}cam.position.y=2+Math.sin(performance.now()*.003)*.005;if(gn)gn.position.y=-.35+Math.sin(performance.now()*.003)*.005;const dc=Math.sqrt(cam.position.x**2+cam.position.z**2);if(dc>C.ms/2-2){const a=Math.atan2(cam.position.z,cam.position.x);cam.position.x=Math.cos(a)*(C.ms/2-2);cam.position.z=Math.sin(a)*(C.ms/2-2)}cr.forEach(c=>{if(!c.userData.c&&cam.position.distanceTo(c.position)<2){c.userData.c=true;c.visible=false;if(c.userData.t==='gold'){pl.g+=c.userData.ga;sM('pickup-msg','+'+c.userData.ga+' <span class="scl-gold">ЗОЛОТО</span>');sfxGold();saveGoldProgress()}else{pl.a+=c.userData.ga;sM('pickup-msg','+'+c.userData.ga+' <span class="scl-ammo">ПАТРОНЫ</span>');sfxAmmo()}uH()}});for(let i=bl.length-1;i>=0;i--){const b=bl[i];b.position.addScaledVector(b.userData.v,d);b.userData.l-=d;let h=false;for(let j=en.length-1;j>=0;j--){const e=en[j];if(b.position.distanceTo(e.mesh.position)<1.2){cP(e.mesh.position,0x1a3a1a,6);sfxCrocDeath();const bd=e.mesh.clone();bd.rotation.set(Math.PI,0,0);bd.position.y=.35;bd.userData.spawnDay=currentDay;scn.add(bd);const flies=createFlies(bd.position);bd.userData.flies=flies;corpses.push(bd);scn.remove(e.mesh);en.splice(j,1);killed++;h=true;document.getElementById('kill-display').innerText=killed+'/'+totalKills;vkTapticFeedback('medium');if(killed>=totalKills){pl.d=true;showMissionSuccess();}break}}if(h||b.userData.l<=0){scn.remove(b);bl.splice(i,1)}}en.forEach(e=>{e.wp+=d*e.sp;e.lg.forEach((l,i)=>l.rotation.x=Math.sin(e.wp+i*Math.PI/2)*.4);const tp=new THREE.Vector3().subVectors(cam.position,e.mesh.position);tp.y=0;const ds=tp.length();if(ds>1.2){tp.normalize();e.mesh.position.addScaledVector(tp,e.sp*d);e.mesh.lookAt(cam.position.x,e.mesh.position.y,cam.position.z)}else{pl.hp-=15*d;sfxHurt();uH();vkTapticFeedback('heavy');if(pl.hp<=0){pl.d=true;stopGameMusic();saveGoldProgress();
-// СНАЧАЛА показываем рекламу, ПОТОМ UI
-showVkAd().then(()=>{showLoseUI()});}}});for(let i=pa.length-1;i>=0;i--){const p=pa[i];p.position.addScaledVector(p.userData.v,d);p.userData.v.y-=15*d;p.userData.l-=d;p.scale.multiplyScalar(.9);if(p.userData.l<=0||p.position.y<0){scn.remove(p);pa.splice(i,1)}}}
+// Задержка перед показом рекламы
+setTimeout(()=>{
+showVkAd().then(()=>{showLoseUI()});
+},500);}}});for(let i=pa.length-1;i>=0;i--){const p=pa[i];p.position.addScaledVector(p.userData.v,d);p.userData.v.y-=15*d;p.userData.l-=d;p.scale.multiplyScalar(.9);if(p.userData.l<=0||p.position.y<0){scn.remove(p);pa.splice(i,1)}}}
 function showLoseUI(){document.getElementById('lose-desc').innerHTML='<span class="scl-gold">ЗОЛОТО</span>: '+pl.g+'<br>Крокодилы выиграли.';document.getElementById('lose-screen').style.display='flex';}
 function uH(){document.getElementById('hp-val').innerText=Math.max(0,Math.floor(pl.hp))+'%';document.getElementById('gold-val').innerText=pl.g+' oz';document.getElementById('ammo-val').innerText=pl.a;document.getElementById('hp-val').style.color=pl.hp>30?'#8b0000':'#ff0000'}
 function onR(){cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();rnd.setSize(innerWidth,innerHeight)}
