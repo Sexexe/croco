@@ -134,69 +134,42 @@ let wasPlayingBeforeHide=false;
 function handleVisibilityChange(isHidden){if(isHidden){wasPlayingBeforeHide=radioPlaying&&!isMuted;if(radioHeavyweight)radioHeavyweight.pause();if(radioDark)radioDark.pause();if(radioParadise)radioParadise.pause();if(ax&&ax.state==='running')ax.suspend()}else{if(wasPlayingBeforeHide&&!isMuted){if(radioHeavyweight)radioHeavyweight.play().catch(()=>{});if(radioDark)radioDark.play().catch(()=>{});if(radioParadise)radioParadise.play().catch(()=>{});if(ax&&ax.state==='suspended')ax.resume()}}}
 
 function preloadAds(){
-    if(!isVkEnvironment||!vkBridge){
-        console.log('Предзагрузка: не VK окружение');
-        return;
-    }
-    
-    console.log('Предзагрузка рекламы...');
-    
-    vkBridge.send('VKWebAppCheckNativeAds',{ad_format:'interstitial'})
-    .then((data)=>{
-        if(data&&data.result){
-            console.log('Реклама предзагружена успешно');
-        }else{
-            console.log('Реклама не готова к показу');
-        }
-    })
-    .catch((error)=>{
-        console.log('Ошибка предзагрузки:',error);
-    });
+    if(!isVkEnvironment||!vkBridge)return;
+    vkBridge.send('VKWebAppCheckNativeAds',{ad_format:'interstitial'}).catch(()=>{});
 }
 
 let lastAdShowTime=0;
-const MIN_AD_INTERVAL=30000;
 
 function showVkAd(){
     return new Promise((resolve)=>{
         const now=Date.now();
-        
-        if(now-lastAdShowTime<MIN_AD_INTERVAL){
-            console.log('Слишком рано для рекламы, прошло:',now-lastAdShowTime,'мс');
+        if(now-lastAdShowTime<60000){
+            console.log('Кулдаун VK 60с');
             resolve();
             return;
         }
-        
         if(!isVkEnvironment||!vkBridge){
-            console.log('Не VK окружение');
             resolve();
             return;
         }
         
-        console.log('Попытка показать рекламу...');
-        
-        const timeout=setTimeout(()=>{
-            console.log('Таймаут рекламы');
-            resolve();
-        },3000);
-        
-        vkBridge.send('VKWebAppCheckNativeAds',{ad_format:'interstitial'})
-        .then(()=>{
-            return vkBridge.send('VKWebAppShowNativeAds',{ad_format:'interstitial'});
-        })
+        if(ax&&ax.state==='running')ax.suspend().catch(()=>{});
+        if(radioHeavyweight)radioHeavyweight.pause();
+        if(radioDark)radioDark.pause();
+        if(radioParadise)radioParadise.pause();
+
+        vkBridge.send('VKWebAppShowNativeAds',{ad_format:'interstitial'})
         .then((data)=>{
-            clearTimeout(timeout);
             if(data&&data.result){
-                console.log('Реклама показана успешно');
-                lastAdShowTime=now;
-                preloadAds();
+                console.log('Реклама показана');
+                lastAdShowTime=Date.now();
+                setTimeout(preloadAds, 2000);
             }else{
-                console.log('Реклама не найдена или отклонена');
+                console.log('Реклама не отдалась VK');
             }
             resolve();
         })
         .catch((error)=>{
-            clearTimeout(timeout);
             console.log('Ошибка рекламы:',error);
             resolve();
         });
@@ -324,7 +297,7 @@ function stopRadioParadise(){
     }
 }
 
-function sfxShoot(){if(!ax||isMuted)return;try{const t=ax.currentTime;const bs1=Math.floor(ax.sampleRate*0.15),buf1=ax.createBuffer(1,bs1,ax.sampleRate),d1=buf1.getChannelData(0);for(let i=0;i<bs1;i++)d1[i]=(Math.random()*2-1);const s1=ax.createBufferSource();s1.buffer=buf1;const f1=ax.createBiquadFilter();f1.type='bandpass';f1.frequency.value=150;f1.Q.value=1;const g1=ax.createGain();g1.gain.setValueAtTime(0.8,t);g1.gain.exponentialRampToValueAtTime(0.001,t+0.15);s1.connect(f1);f1.connect(g1);g1.connect(ax.destination);s1.start(t);s1.stop(t+0.15);const osc=ax.createOscillator();osc.type='sine';osc.frequency.setValueAtTime(35,t);osc.frequency.exponentialRampToValueAtTime(20,t+1.0);const g2=ax.createGain();g2.gain.setValueAtTime(8.0,t);g2.gain.exponentialRampToValueAtTime(0.001,t+1.0);osc.connect(g2);g2.connect(ax.destination);osc.start(t);osc.stop(t+1.0);}catch(e){}}
+function sfxShoot(){if(!ax||isMuted)return;try{const t=ax.currentTime;const N=ax.createBuffer(1,88200,44100);const D=N.getChannelData(0);for(let i=0;i<88200;i++)D[i]=Math.random()*2-1;const s=ax.createBufferSource();s.buffer=N;const f=ax.createBiquadFilter();f.type='lowpass';f.frequency.setValueAtTime(3200,t);f.frequency.exponentialRampToValueAtTime(350,t+.09);const g=ax.createGain();g.gain.setValueAtTime(.5,t);g.gain.exponentialRampToValueAtTime(.001,t+.12);s.connect(f);f.connect(g);g.connect(ax.destination);s.start(t,0,.2);const h=ax.createBufferSource();h.buffer=N;const f2=ax.createBiquadFilter();f2.type='highpass';f2.frequency.value=1400;const g2=ax.createGain();g2.gain.setValueAtTime(.15,t);g2.gain.exponentialRampToValueAtTime(.001,t+.3);h.connect(f2);f2.connect(g2);g2.connect(ax.destination);h.start(t,.5,.35);const o=ax.createOscillator();o.frequency.setValueAtTime(120,t);o.frequency.exponentialRampToValueAtTime(60,t+.12);const g3=ax.createGain();g3.gain.setValueAtTime(.4,t);g3.gain.exponentialRampToValueAtTime(.001,t+.15);o.connect(g3);g3.connect(ax.destination);o.start(t);o.stop(t+.15);}catch(e){}}
 
 function sfxCrocDeath(){if(!ax||isMuted)return;try{const t=ax.currentTime;const duration=6.5;const osc=ax.createOscillator();osc.type='sawtooth';osc.frequency.setValueAtTime(10,t);osc.frequency.exponentialRampToValueAtTime(4,t+duration);const vibrato=ax.createOscillator();vibrato.type='sine';vibrato.frequency.value=1.2;const vibratoGain=ax.createGain();vibratoGain.gain.value=3;vibrato.connect(vibratoGain);vibratoGain.connect(osc.frequency);const oscGain=ax.createGain();oscGain.gain.setValueAtTime(1.1,t);oscGain.gain.exponentialRampToValueAtTime(0.001,t+duration);const filter=ax.createBiquadFilter();filter.type='lowpass';filter.frequency.value=500;filter.Q.value=2;osc.connect(filter);filter.connect(oscGain);oscGain.connect(ax.destination);osc.start(t);vibrato.start(t);osc.stop(t+duration+0.1);vibrato.stop(t+duration+0.1);const bs=Math.floor(ax.sampleRate*duration),buf=ax.createBuffer(1,bs,ax.sampleRate),d=buf.getChannelData(0);for(let i=0;i<bs;i++)d[i]=(Math.random()*2-1);const noiseSource=ax.createBufferSource();noiseSource.buffer=buf;const noiseFilter=ax.createBiquadFilter();noiseFilter.type='bandpass';noiseFilter.frequency.value=900;noiseFilter.Q.value=3;const noiseGain=ax.createGain();noiseGain.gain.setValueAtTime(0.08,t);noiseGain.gain.exponentialRampToValueAtTime(0.001,t+duration);noiseSource.connect(noiseFilter);noiseFilter.connect(noiseGain);noiseGain.connect(ax.destination);noiseSource.start(t);noiseSource.stop(t+duration+0.1);}catch(e){}}
 
@@ -500,15 +473,12 @@ function init(){
 
 function showMissionSuccess(){
     stopGameMusic();
-    startRadioParadise();
     saveGoldProgress();
     
-    // Задержка 500мс перед показом рекламы
-    setTimeout(()=>{
-        showVkAd().then(()=>{
-            showSuccessUI();
-        });
-    }, 500);
+    showVkAd().then(()=>{
+        startRadioParadise();
+        showSuccessUI();
+    });
 }
 
 function showSuccessUI(){
@@ -729,11 +699,7 @@ document.getElementById('day-display').innerText='День 1';document.getElemen
 function sCr(){const active=en.length,toSpawn=Math.min(3-active,C.crc-killed);for(let i=0;i<toSpawn;i++){const m=cCr();const a=Math.random()*Math.PI*2,r=C.ms/2+5+Math.random()*15;m.position.set(Math.cos(a)*r,-.2,Math.sin(a)*r);scn.add(m);en.push({mesh:m,...m.userData})}}
 function sM(id,t){const e=document.getElementById(id);e.innerHTML=t;e.style.opacity=1;setTimeout(()=>e.style.opacity=0,1500)}
 function cP(p,c,n){for(let i=0;i<n;i++){const m=new THREE.Mesh(new THREE.BoxGeometry(.1,.1,.1),new THREE.MeshBasicMaterial({color:c}));m.position.copy(p);m.userData={v:new THREE.Vector3((Math.random()-.5)*6,Math.random()*6,(Math.random()-.5)*6),l:.6};scn.add(m);pa.push(m)}}
-function upd(d){if(pl.d)return;uDN(d);updateAmbient(d);updateFlies(d);updateVoodoo(d,gt);while(corpses.length>MAX_CORPSES){const old=corpses.shift();if(old.userData&&old.userData.flies)scn.remove(old.userData.flies);scn.remove(old)}for(let i=corpses.length-1;i>=0;i--){if(currentDay>corpses[i].userData.spawnDay){if(corpses[i].userData.flies)scn.remove(corpses[i].userData.flies);scn.remove(corpses[i]);corpses.splice(i,1)}}const isNight=gt>=100/190;if(isNight&&en.length<3)sCr();if(!isNight&&en.length>0){en.forEach(e=>scn.remove(e.mesh));en=[]}if(!isStopped){const fwd=new THREE.Vector3(0,0,-1);fwd.applyAxisAngle(new THREE.Vector3(0,1,0),yaw);cam.position.addScaledVector(fwd,C.mv*d)}cam.position.y=2+Math.sin(performance.now()*.003)*.005;if(gn)gn.position.y=-.35+Math.sin(performance.now()*.003)*.005;const dc=Math.sqrt(cam.position.x**2+cam.position.z**2);if(dc>C.ms/2-2){const a=Math.atan2(cam.position.z,cam.position.x);cam.position.x=Math.cos(a)*(C.ms/2-2);cam.position.z=Math.sin(a)*(C.ms/2-2)}cr.forEach(c=>{if(!c.userData.c&&cam.position.distanceTo(c.position)<2){c.userData.c=true;c.visible=false;if(c.userData.t==='gold'){pl.g+=c.userData.ga;sM('pickup-msg','+'+c.userData.ga+' <span class="scl-gold">ЗОЛОТО</span>');sfxGold();saveGoldProgress()}else{pl.a+=c.userData.ga;sM('pickup-msg','+'+c.userData.ga+' <span class="scl-ammo">ПАТРОНЫ</span>');sfxAmmo()}uH()}});for(let i=bl.length-1;i>=0;i--){const b=bl[i];b.position.addScaledVector(b.userData.v,d);b.userData.l-=d;let h=false;for(let j=en.length-1;j>=0;j--){const e=en[j];if(b.position.distanceTo(e.mesh.position)<1.2){cP(e.mesh.position,0x1a3a1a,6);sfxCrocDeath();const bd=e.mesh.clone();bd.rotation.set(Math.PI,0,0);bd.position.y=.35;bd.userData.spawnDay=currentDay;scn.add(bd);const flies=createFlies(bd.position);bd.userData.flies=flies;corpses.push(bd);scn.remove(e.mesh);en.splice(j,1);killed++;h=true;document.getElementById('kill-display').innerText=killed+'/'+totalKills;vkTapticFeedback('medium');if(killed>=totalKills){pl.d=true;showMissionSuccess();}break}}if(h||b.userData.l<=0){scn.remove(b);bl.splice(i,1)}}en.forEach(e=>{e.wp+=d*e.sp;e.lg.forEach((l,i)=>l.rotation.x=Math.sin(e.wp+i*Math.PI/2)*.4);const tp=new THREE.Vector3().subVectors(cam.position,e.mesh.position);tp.y=0;const ds=tp.length();if(ds>1.2){tp.normalize();e.mesh.position.addScaledVector(tp,e.sp*d);e.mesh.lookAt(cam.position.x,e.mesh.position.y,cam.position.z)}else{pl.hp-=15*d;sfxHurt();uH();vkTapticFeedback('heavy');if(pl.hp<=0){pl.d=true;stopGameMusic();saveGoldProgress();
-// Задержка перед показом рекламы
-setTimeout(()=>{
-showVkAd().then(()=>{showLoseUI()});
-},500);}}});for(let i=pa.length-1;i>=0;i--){const p=pa[i];p.position.addScaledVector(p.userData.v,d);p.userData.v.y-=15*d;p.userData.l-=d;p.scale.multiplyScalar(.9);if(p.userData.l<=0||p.position.y<0){scn.remove(p);pa.splice(i,1)}}}
+function upd(d){if(pl.d)return;uDN(d);updateAmbient(d);updateFlies(d);updateVoodoo(d,gt);while(corpses.length>MAX_CORPSES){const old=corpses.shift();if(old.userData&&old.userData.flies)scn.remove(old.userData.flies);scn.remove(old)}for(let i=corpses.length-1;i>=0;i--){if(currentDay>corpses[i].userData.spawnDay){if(corpses[i].userData.flies)scn.remove(corpses[i].userData.flies);scn.remove(corpses[i]);corpses.splice(i,1)}}const isNight=gt>=100/190;if(isNight&&en.length<3)sCr();if(!isNight&&en.length>0){en.forEach(e=>scn.remove(e.mesh));en=[]}if(!isStopped){const fwd=new THREE.Vector3(0,0,-1);fwd.applyAxisAngle(new THREE.Vector3(0,1,0),yaw);cam.position.addScaledVector(fwd,C.mv*d)}cam.position.y=2+Math.sin(performance.now()*.003)*.005;if(gn)gn.position.y=-.35+Math.sin(performance.now()*.003)*.005;const dc=Math.sqrt(cam.position.x**2+cam.position.z**2);if(dc>C.ms/2-2){const a=Math.atan2(cam.position.z,cam.position.x);cam.position.x=Math.cos(a)*(C.ms/2-2);cam.position.z=Math.sin(a)*(C.ms/2-2)}cr.forEach(c=>{if(!c.userData.c&&cam.position.distanceTo(c.position)<2){c.userData.c=true;c.visible=false;if(c.userData.t==='gold'){pl.g+=c.userData.ga;sM('pickup-msg','+'+c.userData.ga+' <span class="scl-gold">ЗОЛОТО</span>');sfxGold();saveGoldProgress()}else{pl.a+=c.userData.ga;sM('pickup-msg','+'+c.userData.ga+' <span class="scl-ammo">ПАТРОНЫ</span>');sfxAmmo()}uH()}});for(let i=bl.length-1;i>=0;i--){const b=bl[i];b.position.addScaledVector(b.userData.v,d);b.userData.l-=d;let h=false;for(let j=en.length-1;j>=0;j--){const e=en[j];if(b.position.distanceTo(e.mesh.position)<1.2){cP(e.mesh.position,0x1a3a1a,6);sfxCrocDeath();const bd=e.mesh.clone();bd.rotation.set(Math.PI,0,0);bd.position.y=.35;bd.userData.spawnDay=currentDay;scn.add(bd);const flies=createFlies(bd.position);bd.userData.flies=flies;corpses.push(bd);scn.remove(e.mesh);en.splice(j,1);killed++;h=true;document.getElementById('kill-display').innerText=killed+'/'+totalKills;vkTapticFeedback('medium');if(killed>=totalKills){pl.d=true;showMissionSuccess();}break}}if(h||b.userData.l<=0){scn.remove(b);bl.splice(i,1)}}en.forEach(e=>{e.wp+=d*e.sp;e.lg.forEach((l,i)=>l.rotation.x=Math.sin(e.wp+i*Math.PI/2)*.4);const tp=new THREE.Vector3().subVectors(cam.position,e.mesh.position);tp.y=0;const ds=tp.length();if(ds>1.2){tp.normalize();e.mesh.position.addScaledVector(tp,e.sp*d);e.mesh.lookAt(cam.position.x,e.mesh.position.y,cam.position.z)}else{pl.hp-=15*d;sfxHurt();uH();vkTapticFeedback('heavy');if(pl.hp<=0){pl.d=true;stopGameMusic();saveGoldProgress();showVkAd().then(()=>{showLoseUI()});}}});for(let i=pa.length-1;i>=0;i--){const p=pa[i];p.position.addScaledVector(p.userData.v,d);p.userData.v.y-=15*d;p.userData.l-=d;p.scale.multiplyScalar(.9);if(p.userData.l<=0||p.position.y<0){scn.remove(p);pa.splice(i,1)}}}
 function showLoseUI(){document.getElementById('lose-desc').innerHTML='<span class="scl-gold">ЗОЛОТО</span>: '+pl.g+'<br>Крокодилы выиграли.';document.getElementById('lose-screen').style.display='flex';}
 function uH(){document.getElementById('hp-val').innerText=Math.max(0,Math.floor(pl.hp))+'%';document.getElementById('gold-val').innerText=pl.g+' oz';document.getElementById('ammo-val').innerText=pl.a;document.getElementById('hp-val').style.color=pl.hp>30?'#8b0000':'#ff0000'}
 function onR(){cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();rnd.setSize(innerWidth,innerHeight)}
