@@ -129,7 +129,7 @@ body.iphone .hud-panel{transform:translateY(76%);}
 <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
 <script>
 const vkBridge=window.vkBridge;let vkBridgeReady=false,isVkEnvironment=false;
-if(vkBridge){try{vkBridge.send('VKWebAppInit').then(()=>{vkBridgeReady=true;isVkEnvironment=true}).catch(()=>{isVkEnvironment=false});vkBridge.subscribe((event)=>{if(!event.detail||!event.detail.type)return;const{type}=event.detail;if(type==='VKWebAppViewHide'){handleVisibilityChange(true)}else if(type==='VKWebAppViewRestore'){handleVisibilityChange(false)}})}catch(e){}}
+if(vkBridge){try{vkBridge.send('VKWebAppInit').then(()=>{vkBridgeReady=true;isVkEnvironment=true;console.log('VK Bridge init OK');preloadAds();}).catch((e)=>{isVkEnvironment=false;console.log('VK Bridge init fail:',e)});vkBridge.subscribe((event)=>{if(!event.detail||!event.detail.type)return;const{type}=event.detail;if(type==='VKWebAppViewHide'){handleVisibilityChange(true)}else if(type==='VKWebAppViewRestore'){handleVisibilityChange(false)}})}catch(e){}}
 document.addEventListener('visibilitychange',()=>{handleVisibilityChange(document.hidden)});
 
 let isMuted=false;
@@ -162,17 +162,34 @@ function preloadAds(){
 
 function showVkAd(){
     return new Promise((resolve)=>{
-        if(isVkEnvironment&&vkBridge){
-            vkBridge.send('VKWebAppShowNativeAds',{ad_format:'interstitial'})
-            .then((data)=>{
-                if(data.result){console.log('Реклама показана');preloadAds();}
-                else{console.log('Ошибка показа рекламы');}
-                resolve();
-            })
-            .catch((error)=>{console.log('Ошибка рекламы:',error);resolve();});
-        }else{
+        if(!isVkEnvironment||!vkBridge){
             resolve();
+            return;
         }
+
+        vkBridge.send('VKWebAppCheckNativeAds',{ad_format:'interstitial'})
+        .then((checkData)=>{
+            console.log('Mobile ad check:',JSON.stringify(checkData));
+            return new Promise((res)=>{
+                setTimeout(()=>{
+                    vkBridge.send('VKWebAppShowNativeAds',{ad_format:'interstitial'})
+                    .then(res)
+                    .catch(res);
+                },300);
+            });
+        })
+        .then((showData)=>{
+            if(showData&&showData.result){
+                console.log('Mobile ad shown');
+                preloadAds();
+            }else{
+                console.log('Mobile ad not shown:',JSON.stringify(showData));
+            }
+            resolve();
+        })
+        .catch(()=>{
+            resolve();
+        });
     });
 }
 
@@ -234,7 +251,6 @@ let restarting=false;
 
 function showButtonAdThen(callback){
     if(adButtonBusy)return false;
-
     adButtonBusy=true;
 
     const run=()=>{
@@ -242,7 +258,7 @@ function showButtonAdThen(callback){
         callback();
     };
 
-    if(!((isMob || isIOS) && isVkEnvironment)){
+    if(!((isMob||isIOS)&&isVkEnvironment)){
         run();
         return true;
     }
@@ -254,18 +270,23 @@ function showButtonAdThen(callback){
         run();
     };
 
-    const timer=setTimeout(safeFinish,8000);
+    const timer=setTimeout(safeFinish,10000);
 
-    showVkAd()
-    .then(()=>{
-        clearTimeout(timer);
-        safeFinish();
-    })
-    .catch(()=>{
-        clearTimeout(timer);
-        safeFinish();
-    });
+    const tryShow=()=>{
+        if(!isVkEnvironment){
+            setTimeout(()=>{
+                if(isVkEnvironment){
+                    showVkAd().then(()=>{clearTimeout(timer);safeFinish();}).catch(()=>{clearTimeout(timer);safeFinish();});
+                }else{
+                    clearTimeout(timer);safeFinish();
+                }
+            },500);
+        }else{
+            showVkAd().then(()=>{clearTimeout(timer);safeFinish();}).catch(()=>{clearTimeout(timer);safeFinish();});
+        }
+    };
 
+    tryShow();
     return true;
 }
 
