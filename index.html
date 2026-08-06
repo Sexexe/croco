@@ -132,6 +132,7 @@ body.iphone .hud-panel{transform:translateY(76%);}
 <script>
 const vkBridge=window.vkBridge;
 let vkBridgeReady=false, isVkEnvironment=false;
+let adDismissHandler = null;
 
 if(vkBridge){
     try{
@@ -153,6 +154,12 @@ if(vkBridge){
                 handleVisibilityChange(true)
             } else if(type==='VKWebAppViewRestore'){
                 handleVisibilityChange(false)
+            } else if(type==='VKWebAppAdDismissed'){
+                console.log('Реклама закрыта');
+                if(adDismissHandler){
+                    adDismissHandler();
+                    adDismissHandler = null;
+                }
             }
         });
     }catch(e){}
@@ -194,38 +201,45 @@ function showVkAd(){
             return;
         }
 
+        // Таймаут на случай, если реклама не закроется
         const timeout = setTimeout(() => {
-            console.log('Таймаут рекламы');
+            console.log('Таймаут рекламы - принудительное завершение');
+            adDismissHandler = null;
             resolve();
         }, 30000);
 
         vkBridge.send('VKWebAppShowNativeAds',{ad_format:'interstitial'})
         .then((data)=>{
-            console.log('Реклама показана');
-            if(!data.result){
+            console.log('Команда показа рекламы отправлена:', data);
+            
+            // Если реклама не готова, сразу разрешаем
+            if(!data || !data.result){
                 clearTimeout(timeout);
+                console.log('Реклама не готова или недоступна');
                 resolve();
                 return;
             }
             
-            const adDismissedHandler = (event) => {
-                if(event.detail && event.detail.type === 'VKWebAppAdDismissed'){
-                    clearTimeout(timeout);
-                    vkBridge.unsubscribe(adDismissedHandler);
-                    console.log('Реклама закрыта');
-                    resolve();
-                }
+            // Создаем обработчик для закрытия рекламы
+            adDismissHandler = () => {
+                clearTimeout(timeout);
+                console.log('Реклама успешно закрыта');
+                resolve();
             };
             
-            vkBridge.subscribe(adDismissedHandler);
-            
+            // Автоматически разрешаем через 5 секунд если реклама не закрылась
+            // (некоторые рекламные сети не отправляют событие закрытия)
             setTimeout(() => {
-                try { vkBridge.unsubscribe(adDismissedHandler); } catch(e){}
-            }, 29000);
+                if(adDismissHandler){
+                    console.log('Принудительное завершение после 5 секунд');
+                    adDismissHandler();
+                }
+            }, 5000);
         })
         .catch((err)=>{
             clearTimeout(timeout);
-            console.log('Ошибка рекламы:', err);
+            adDismissHandler = null;
+            console.log('Ошибка показа рекламы:', err);
             resolve();
         });
     });
