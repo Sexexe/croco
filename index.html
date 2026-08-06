@@ -142,7 +142,6 @@ if(vkBridge){
             vkBridgeReady=true;
             isVkEnvironment=true;
             console.log('VK Bridge init OK');
-            checkRewardAdReadiness();
         }).catch((e)=>{
             isVkEnvironment=false;
             console.log('VK Bridge init fail:',e)
@@ -179,15 +178,15 @@ function handleVisibilityChange(isHidden){
     }
 }
 
-// ===== REWARD-РЕКЛАМА (только для кнопки ПОВТОРИТЬ при смерти) =====
 function checkRewardAdReadiness(){
-    if(!isVkEnvironment||!vkBridge)return;
-    vkBridge.send('VKWebAppCheckNativeAds',{ad_format:'reward'})
+    if(!isVkEnvironment||!vkBridge)return Promise.resolve(false);
+    return vkBridge.send('VKWebAppCheckNativeAds',{ad_format:'reward'})
     .then((d)=>{
         isRewardAdReady=d.result;
         console.log('Reward ad ready:', isRewardAdReady);
+        return d.result;
     })
-    .catch(()=>{isRewardAdReady=false;});
+    .catch(()=>{isRewardAdReady=false; return false;});
 }
 
 function showRewardAd(){
@@ -196,30 +195,31 @@ function showRewardAd(){
             resolve({success:false, reason:'no_bridge'});
             return;
         }
-        if(!isRewardAdReady){
-            console.log('Reward ad not ready, trying to check...');
-            checkRewardAdReadiness();
-            resolve({success:false, reason:'not_ready'});
-            return;
-        }
-        vkBridge.send('VKWebAppShowNativeAds',{ad_format:'reward'})
-        .then((d)=>{
-            if(d&&d.result){
-                console.log('Reward ad watched successfully');
-                setTimeout(checkRewardAdReadiness,2000);
-                resolve({success:true});
-            }else{
-                console.log('Reward ad unavailable or closed early');
-                resolve({success:false, reason:'no_result'});
+        
+        // Проверяем готовность рекламы и только потом показываем
+        checkRewardAdReadiness().then((ready)=>{
+            if(!ready){
+                resolve({success:false, reason:'not_ready'});
+                return;
             }
-        })
-        .catch((err)=>{
-            console.log('Reward ad error:', err);
-            resolve({success:false, reason:'error'});
+            
+            vkBridge.send('VKWebAppShowNativeAds',{ad_format:'reward'})
+            .then((d)=>{
+                if(d&&d.result){
+                    console.log('Reward ad watched successfully');
+                    resolve({success:true});
+                }else{
+                    console.log('Reward ad unavailable or closed early');
+                    resolve({success:false, reason:'no_result'});
+                }
+            })
+            .catch((err)=>{
+                console.log('Reward ad error:', err);
+                resolve({success:false, reason:'error'});
+            });
         });
     });
 }
-// ===== КОНЕЦ REWARD-РЕКЛАМЫ =====
 
 const vkShare=t=>isVkEnvironment&&vkBridge?vkBridge.send('VKWebAppShare',{text:t}).catch(()=>{}):null;
 const vkTapticFeedback=(t='light')=>isVkEnvironment&&vkBridge?vkBridge.send('VKWebAppTapticFeedback',{type:t}).catch(()=>{}):null;
@@ -239,6 +239,15 @@ function saveGoldProgressThrottled(){
         lastSaveTime = now;
         saveGoldProgress();
     }
+}
+
+function saveGoldWithBonus(bonus){
+    const newGold = (pl.g || 0) + bonus;
+    const data = JSON.stringify({gold:newGold, missionLevel:missionLevel});
+    if(isVkEnvironment&&vkBridge){
+        vkBridge.send('VKWebAppStorageSet',{key:'croc_hunter_gold',value:data}).catch(()=>{});
+    }
+    try{localStorage.setItem('croc_hunter_gold',data)}catch(e){}
 }
 
 function loadGoldProgress(){
@@ -707,9 +716,6 @@ function init(){
     musicBtn.addEventListener('click',e=>{e.stopPropagation();toggleMute()});
     menuBtn.addEventListener('click',e=>{e.stopPropagation();returnToMenu()});
 
-    // Проверка готовности reward-рекламы (каждые 30 сек) - нужна для кнопки ПОВТОРИТЬ
-    setInterval(checkRewardAdReadiness, 30000);
-
     if(isMob){
         moveBtn.style.display='flex';
         moveBtn.addEventListener('touchend',e=>{
@@ -780,7 +786,6 @@ function init(){
     }
     addEventListener('resize',onR);
 
-    // ===== СТАРТ ИГРЫ (без рекламы) =====
     const startBtnMain=document.getElementById('startBtn');
     const doStart=()=>{
         if(starting)return;
@@ -797,7 +802,6 @@ function init(){
         doStart();
     });
 
-    // ===== СЛЕДУЮЩАЯ МИССИЯ (без рекламы) =====
     const playBtn=document.getElementById('playBtn');
     const doPlay=()=>{
         if(missionChanging)return;
@@ -817,13 +821,13 @@ function init(){
         doPlay();
     });
 
-    // ===== ПОВТОРНЫЙ ЗАПУСК (с reward-рекламой +50 золота) =====
     const restartBtn=document.getElementById('restartBtn');
     const doRestart=()=>{
         if(restarting)return;
         restarting=true;
         restartBtn.classList.add('btn-disabled');
         
+        // Реклама проверяется и показывается ТОЛЬКО здесь, при нажатии ПОВТОРИТЬ
         showRewardAd().then((result)=>{
             restarting=false;
             restartBtn.classList.remove('btn-disabled');
