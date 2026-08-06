@@ -702,6 +702,14 @@ function setLoadingBackground(){
     }
 }
 
+function exitPointerLockSafe(){
+    try{
+        if(document.pointerLockElement){
+            document.exitPointerLock();
+        }
+    }catch(e){}
+}
+
 function init(){
     setLoadingBackground();
     scn=new THREE.Scene();cam=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,.1,300);rnd=new THREE.WebGLRenderer({antialias:!isMob,powerPreference:"high-performance"});rnd.setSize(innerWidth,innerHeight);rnd.setPixelRatio(Math.min(devicePixelRatio,isMob?1.5:2));rnd.shadowMap.enabled=true;rnd.shadowMap.type=THREE.PCFSoftShadowMap;rnd.toneMapping=THREE.ACESFilmicToneMapping;document.body.appendChild(rnd.domElement);al=new THREE.AmbientLight(0xffffff,.6);scn.add(al);sl=new THREE.DirectionalLight(0xffffee,1.2);sl.position.set(50,80,30);sl.castShadow=true;const smSize=isMob?1024:1536;sl.shadow.mapSize.set(smSize,smSize);sl.shadow.bias=-0.001;sl.shadow.normalBias=0.02;if(sl.shadow.radius !== undefined)sl.shadow.radius=1.0;const d=80;sl.shadow.camera.left=-d;sl.shadow.camera.right=d;sl.shadow.camera.top=d;sl.shadow.camera.bottom=-d;scn.add(sl);ml=new THREE.DirectionalLight(0xaaccff,0);ml.position.set(-50,60,-30);ml.castShadow=false;scn.add(ml);const sg=new THREE.SphereGeometry(250,24,24);const smt=new THREE.ShaderMaterial({uniforms:{tc:{value:new THREE.Color(0x00aaff)},bc:{value:new THREE.Color(0xffffff)},o:{value:20},e:{value:.5}},vertexShader:`varying vec3 vWP;void main(){vec4 wp=modelMatrix*vec4(position,1.0);vWP=wp.xyz;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,fragmentShader:`uniform vec3 tc;uniform vec3 bc;uniform float o;uniform float e;varying vec3 vWP;void main(){float h=normalize(vWP+o).y;gl_FragColor=vec4(mix(bc,tc,max(pow(max(h,0.),e),0.)),1.);}`,side:THREE.BackSide,depthWrite:false});sd=new THREE.Mesh(sg,smt);scn.add(sd);
@@ -871,17 +879,17 @@ function init(){
                         vkBridge.send('VKWebAppStorageSet',{key:'croc_hunter_gold',value:data}).catch(()=>{});
                     }
                     try{localStorage.setItem('croc_hunter_gold',data)}catch(e){}
-                    setTimeout(()=>location.reload(), 300);
+                    sG();
                 });
             } else {
                 console.log('❌ Реклама не просмотрена:', result.reason);
-                setTimeout(()=>location.reload(), 300);
+                sG();
             }
         }).catch((err)=>{
             console.log('Ошибка при показе reward:', err);
             restarting=false;
             restartBtn.classList.remove('btn-disabled');
-            location.reload();
+            sG();
         });
     };
     restartBtn.addEventListener('click',e=>{
@@ -905,6 +913,7 @@ function showMissionSuccess(){
     saveGoldProgress();
     startVictoryRadio();
     showSuccessUI();
+    exitPointerLockSafe();
 }
 
 function showSuccessUI(){
@@ -1270,7 +1279,7 @@ function uDN(d){
     else if(isMorning)targetGrassMat=mt.grassMorning;
     if(targetGrassMat!==lastGrassMat){for(let i=0;i<grassMeshes.length;i++){grassMeshes[i].material=targetGrassMat}lastGrassMat=targetGrassMat}
 }
-function returnToMenu(){ia=false;pl.d=true;isLeftMouseDown=false;isRightMouseDown=false;isTwoFingersTouching=false;stopBurst();if(radioHeavyweight)radioHeavyweight.pause();if(radioDark)radioDark.pause();if(ax)ax.suspend();document.getElementById('overlay').style.display='flex';document.getElementById('lose-screen').style.display='none';document.getElementById('mission-success-screen').style.display='none';const startBtn=document.getElementById('startBtn');startBtn.classList.remove('btn-disabled');startBtn.innerText='НАЧАТЬ ОХОТУ';document.getElementById('loading-bar').style.width='0%';let loadProgress=0;const loadInterval=setInterval(()=>{loadProgress+=Math.random()*15+5;if(loadProgress>=100){loadProgress=100;clearInterval(loadInterval);startBtn.classList.remove('btn-disabled')}document.getElementById('loading-bar').style.width=loadProgress+'%'},30)}
+function returnToMenu(){ia=false;pl.d=true;isLeftMouseDown=false;isRightMouseDown=false;isTwoFingersTouching=false;stopBurst();if(radioHeavyweight)radioHeavyweight.pause();if(radioDark)radioDark.pause();if(ax)ax.suspend();document.getElementById('overlay').style.display='flex';document.getElementById('lose-screen').style.display='none';document.getElementById('mission-success-screen').style.display='none';const startBtn=document.getElementById('startBtn');startBtn.classList.remove('btn-disabled');startBtn.innerText='НАЧАТЬ ОХОТУ';document.getElementById('loading-bar').style.width='0%';let loadProgress=0;const loadInterval=setInterval(()=>{loadProgress+=Math.random()*15+5;if(loadProgress>=100){loadProgress=100;clearInterval(loadInterval);startBtn.classList.remove('btn-disabled')}document.getElementById('loading-bar').style.width=loadProgress+'%'},30);exitPointerLockSafe()}
 window.sG=function(){
     if(ia && !pl.d) return;
     document.getElementById('overlay').style.display='none';document.getElementById('lose-screen').style.display='none';document.getElementById('mission-success-screen').style.display='none';ia=true;pl.hp=100;pl.a=50;pl.d=false;killed=0;isStopped=true;yaw=0;pitch=0;gt=0;currentDay=1;lastLootDay=-1;lootSpawnedToday=false;radioManualOverride=false;morningStartTime=performance.now();coinsSpawnedThisNight=false;isLeftMouseDown=false;isRightMouseDown=false;isTwoFingersTouching=false;stopBurst();stopGameMusic();corpses.forEach(c=>{if(c.userData&&c.userData.flies)scn.remove(c.userData.flies);scn.remove(c)});corpses=[];cam.position.set(0,2,15);updateCamRot();updateMoveBtn();initAudio();startDefaultRadio();spawnMorningLoot();en.forEach(e=>scn.remove(e.mesh));en=[];db.forEach(b=>scn.remove(b));db=[];cr.forEach(c=>{scn.remove(c)});cr=[];
@@ -1431,6 +1440,7 @@ function upd(d){
 function showLoseUI(){
     document.getElementById('lose-desc').innerHTML='<span class="scl-gold">ЗОЛОТО</span>: '+pl.g+'<br>Крокодилы выиграли.';
     document.getElementById('lose-screen').style.display='flex';
+    exitPointerLockSafe();
 }
 function uH(){
     const hpVal=document.getElementById('hp-val');
