@@ -147,7 +147,7 @@ if(vkBridge){
         
         vkBridge.subscribe((event)=>{
             if(!event.detail||!event.detail.type)return;
-            const{type}=event.detail;
+            const{type,data}=event.detail;
             
             if(type==='VKWebAppViewHide'){
                 handleVisibilityChange(true)
@@ -187,7 +187,6 @@ function preloadAds(){
     }
 }
 
-// Упрощённая логика рекламы: показываем и сразу разрешаем промис
 function showVkAd(){
     return new Promise((resolve)=>{
         if(!isVkEnvironment||!vkBridge){
@@ -195,13 +194,38 @@ function showVkAd(){
             return;
         }
 
-        vkBridge.send('VKWebAppShowNativeAds',{ad_format:'interstitial'})
-        .then(()=>{
-            console.log('Ad shown, resolving immediately');
+        const timeout = setTimeout(() => {
+            console.log('Таймаут рекламы');
             resolve();
+        }, 30000);
+
+        vkBridge.send('VKWebAppShowNativeAds',{ad_format:'interstitial'})
+        .then((data)=>{
+            console.log('Реклама показана');
+            if(!data.result){
+                clearTimeout(timeout);
+                resolve();
+                return;
+            }
+            
+            const adDismissedHandler = (event) => {
+                if(event.detail && event.detail.type === 'VKWebAppAdDismissed'){
+                    clearTimeout(timeout);
+                    vkBridge.unsubscribe(adDismissedHandler);
+                    console.log('Реклама закрыта');
+                    resolve();
+                }
+            };
+            
+            vkBridge.subscribe(adDismissedHandler);
+            
+            setTimeout(() => {
+                try { vkBridge.unsubscribe(adDismissedHandler); } catch(e){}
+            }, 29000);
         })
         .catch((err)=>{
-            console.log('Ad error or unavailable:', err);
+            clearTimeout(timeout);
+            console.log('Ошибка рекламы:', err);
             resolve();
         });
     });
