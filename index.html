@@ -81,12 +81,12 @@ body.iphone .hud-panel{transform:translateY(76%);}
 .play-btn:hover:not(.btn-disabled){background:linear-gradient(to bottom,#6b4423,#4a2a15);transform:translateY(-3px)}
 .play-btn:active:not(.btn-disabled){transform:translateY(1px)}
 .play-btn.btn-disabled{background:linear-gradient(to bottom,#444,#222)!important;cursor:not-allowed!important;opacity:.6!important;border-color:#555!important;color:#888!important;pointer-events:none!important;box-shadow:none!important}
-#vignette{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5;background:radial-gradient(ellipse at center,transparent 60%,rgba(0,0,0,0.4) 100%);transition:opacity 0.5s ease}
 .reward-hint{margin-top:15px;font-family:'Rye',serif;font-size:clamp(12px,2vw,16px);color:#f4e4bc;opacity:0.85;text-shadow:1px 1px 2px rgba(0,0,0,.6);letter-spacing:1px}
+#video-overlay{display:none;position:absolute;top:0;left:0;width:100%;height:100%;z-index:100;background:#000;pointer-events:auto}
+#intro-video{width:100%;height:100%;object-fit:cover}
 </style>
 </head>
 <body>
-<div id="vignette"></div>
 <div id="ui-layer">
 <div id="hud-top">
 <div class="hud-panel">
@@ -129,6 +129,9 @@ body.iphone .hud-panel{transform:translateY(76%);}
 <div class="mission-success-overlay">
 <div class="play-btn" id="playBtn" role="button" tabindex="0">ИГРАТЬ</div>
 </div>
+</div>
+<div id="video-overlay">
+<video id="intro-video" playsinline webkit-playsinline preload="auto"></video>
 </div>
 <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
 <script>
@@ -196,7 +199,6 @@ function showRewardAd(){
             return;
         }
         
-        // Проверяем готовность рекламы и только потом показываем
         checkRewardAdReadiness().then((ready)=>{
             if(!ready){
                 resolve({success:false, reason:'not_ready'});
@@ -384,7 +386,7 @@ const SKY_KEYS=[
 {t:0.158, top:0x00aaff, bot:0xffffff, sun:[50,80,30],     sunCol:0xffffff, si:1.20, amb:0xffffff, ai:0.60, mi:0.00, exp:1.00, fog:0xc0d8e8, fd:0.007, stars:0.00, sh:1.00, sBias:-0.001, sNBias:0.02, sRad:1.0},
 {t:0.200, top:0x00aaff, bot:0xaaddff, sun:[50,80,30],     sunCol:0xffffff, si:1.20, amb:0xffffff, ai:0.60, mi:0.00, exp:1.00, fog:0xa0c8e0, fd:0.006, stars:0.00, sh:0.85, sBias:-0.001, sNBias:0.02, sRad:1.0},
 {t:0.263, top:0x00aaff, bot:0xffffff, sun:[50,80,30],     sunCol:0xffffff, si:1.20, amb:0xffffff, ai:0.60, mi:0.00, exp:1.00, fog:0xc0d8e8, fd:0.007, stars:0.00, sh:0.85, sBias:-0.001, sNBias:0.02, sRad:1.0},
-{t:0.500, top:0x00aaff, bot:0xffeeaa, sun:[-60,30,-60],   sunCol:0xffd080, si:1.00, amb:0xffeedd, ai:0.55, mi:0.10, exp:0.95, fog:0xb0a880, fd:0.008, stars:0.00, sh:0.85, sBias:-0.001, sNBias:0.02, sRad:1.2},
+{t:0.421, top:0x00aaff, bot:0xffeeaa, sun:[-60,30,-60],   sunCol:0xffd080, si:1.00, amb:0xffeedd, ai:0.55, mi:0.10, exp:0.95, fog:0xb0a880, fd:0.008, stars:0.00, sh:0.85, sBias:-0.001, sNBias:0.02, sRad:1.2},
 {t:0.526, top:0x2a1b3d, bot:0xff88bb, sun:[-100,2,-100],  sunCol:0xff88aa, si:0.80, amb:0xffaacc, ai:0.45, mi:0.30, exp:0.80, fog:0x6a4050, fd:0.011, stars:0.20, sh:0.85, sBias:-0.0015, sNBias:0.03, sRad:1.8},
 {t:0.543, top:0x261830, bot:0xcc6688, sun:[-100,0,-100],  sunCol:0xff7799, si:0.55, amb:0xee99bb, ai:0.38, mi:0.45, exp:0.70, fog:0x553344, fd:0.012, stars:0.40, sh:0.75, sBias:-0.002, sNBias:0.04, sRad:2.2},
 {t:0.560, top:0x1a1025, bot:0xff5533, sun:[-100,-10,-100],sunCol:0xff9966, si:0.30, amb:0x886688, ai:0.28, mi:0.60, exp:0.55, fog:0x33181a, fd:0.013, stars:0.70, sh:0.65, sBias:-0.0025, sNBias:0.05, sRad:2.5},
@@ -790,8 +792,32 @@ function init(){
     const doStart=()=>{
         if(starting)return;
         starting=true;
-        sG();
-        starting=false;
+        
+        const videoOverlay=document.getElementById('video-overlay');
+        const video=document.getElementById('intro-video');
+        
+        videoOverlay.style.display='block';
+        video.src='https://sexexe.github.io/croco/0716.mp4';
+        
+        let videoDone=false;
+        const startGameAfterVideo=()=>{
+            if(videoDone)return;
+            videoDone=true;
+            video.pause();
+            videoOverlay.style.display='none';
+            video.removeAttribute('src');
+            video.load();
+            sG();
+            starting=false;
+        };
+        
+        video.onended=startGameAfterVideo;
+        video.onerror=startGameAfterVideo;
+        video.onclick=startGameAfterVideo;
+        
+        video.play().catch(()=>{
+            startGameAfterVideo();
+        });
     };
     startBtnMain.addEventListener('click',e=>{
         if(e.cancelable)e.preventDefault();
@@ -827,7 +853,6 @@ function init(){
         restarting=true;
         restartBtn.classList.add('btn-disabled');
         
-        // Реклама проверяется и показывается ТОЛЬКО здесь, при нажатии ПОВТОРИТЬ
         showRewardAd().then((result)=>{
             restarting=false;
             restartBtn.classList.remove('btn-disabled');
@@ -1231,18 +1256,6 @@ function uDN(d){
     const sv=sky.stars;
     if(starMat){starMat.uniforms.uOpacity.value=sv;starPts.visible=sv>0.02;}
     if(bgStarsMat){bgStarsMat.opacity=sv*0.55;bgStars.visible=sv>0.02;}
-
-    const vignette=document.getElementById('vignette');
-    let vignetteOpacity=1.0;
-    if(isEvening){
-        const t=(gt-50/190)/(50/190);
-        vignetteOpacity=Math.max(0, 1.0 - t*1.5);
-    } else if(isNight){
-        vignetteOpacity=0.0;
-    }
-    if(vignette.style.opacity !== String(vignetteOpacity)){
-        vignette.style.opacity = String(vignetteOpacity);
-    }
 
     let pn;
     if(isMorning)pn='☀️ <span class="scl-time">УТРО</span>';
