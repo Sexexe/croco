@@ -58,29 +58,29 @@ body.iphone .hud-panel{transform:translateY(76%);}
 .music-btn:active{transform:scale(.9)}
 @keyframes pulse{0%,100%{box-shadow:0 4px 15px rgba(0,0,0,.5)}50%{box-shadow:0 4px 25px rgba(76,175,80,.6)}}
 .poster-screen{position:absolute;top:0;left:0;width:100%;height:100%;background:#1a120b;display:none;flex-direction:column;align-items:center;justify-content:center;pointer-events:auto;z-index:30;padding:0;box-sizing:border-box;text-align:center;overflow:hidden}
-.loading-background{position:absolute;top:0;left:0;width:100%;height:100%;background-size:cover;background-position:center;background-repeat:no-repeat;z-index:34}
+.loading-background{position:absolute;top:0;left:0;width:100%;height:100%;background-size:cover;background-position:center;background-repeat:no-repeat}
 .loading-container{position:absolute;bottom:120px;left:50%;transform:translateX(-50%);width:80%;max-width:300px;height:12px;background:rgba(0,0,0,0.4);border-radius:6px;overflow:hidden;border:1px solid #8b5a2b;box-shadow:inset 0 2px 4px rgba(0,0,0,0.5);z-index:35}
 .loading-bar{width:0%;height:100%;background:linear-gradient(90deg,#ff0000,#cc0000);box-shadow:0 0 10px #ff0000;transition:width 0.2s ease-out}
-#startBtn{position:absolute;bottom:max(40px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);font-family:'Rye',serif;padding:15px 60px;font-size:clamp(18px,3vw,26px);background:linear-gradient(to bottom,#5c3a1e,#3a2010);border:3px solid #8b5a2b;color:#f4e4bc;cursor:pointer;text-transform:uppercase;letter-spacing:3px;box-shadow:0 4px 15px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.1);transition:all .2s;-webkit-tap-highlight-color:transparent;touch-action:manipulation;z-index:35}
-#startBtn:hover:not(.btn-disabled){background:linear-gradient(to bottom,#6b4423,#4a2a15);transform:translateX(-50%) translateY(-2px)}
-#startBtn:active:not(.btn-disabled){transform:translateX(-50%) translateY(1px)}
-#startBtn.btn-disabled{background:linear-gradient(to bottom,#444,#222)!important;cursor:not-allowed!important;opacity:.6!important;border-color:#555!important;color:#888!important;pointer-events:none!important;box-shadow:none!important}
+#startBtn{position:absolute;bottom:40px;left:50%;transform:translateX(-50%);font-family:'Rye',serif;padding:15px 60px;font-size:clamp(18px,3vw,26px);background:linear-gradient(to bottom,#5c3a1e,#3a2010);border:3px solid #8b5a2b;color:#f4e4bc;cursor:pointer;text-transform:uppercase;letter-spacing:3px;box-shadow:0 4px 15px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.1);transition:all .2s;-webkit-tap-highlight-color:transparent;touch-action:manipulation;z-index:35}
+#startBtn:hover:not(:disabled){background:linear-gradient(to bottom,#6b4423,#4a2a15);transform:translateX(-50%) translateY(-2px)}
+#startBtn:active:not(:disabled){transform:translateX(-50%) translateY(1px)}
+#startBtn:disabled{background:linear-gradient(to bottom,#444,#222)!important;cursor:not-allowed!important;opacity:.6!important;border-color:#555!important;color:#888!important;pointer-events:none!important;box-shadow:none!important}
 #overlay{display:flex}
 #win-screen,#lose-screen{display:none}
 .wanted-poster{background:linear-gradient(to bottom,#f4e4bc,#e8d5a3,#f4e4bc);border:4px double #5c3a1e;padding:30px 40px;max-width:500px;width:90%;text-align:center;position:relative;box-shadow:0 10px 40px rgba(0,0,0,.8),inset 0 0 60px rgba(92,58,30,.2);transform:rotate(-1deg);display:flex;flex-direction:column;align-items:center;z-index:40}
 .wanted-poster::before{content:'';position:absolute;top:8px;left:8px;right:8px;bottom:8px;border:2px solid #8b5a2b;pointer-events:none}
 .main-title{font-family:'Rye',serif;color:#8b0000;font-size:clamp(32px,6vw,54px);margin:0 0 15px 0;text-transform:uppercase;letter-spacing:4px;text-shadow:2px 2px 0 rgba(0,0,0,.2);line-height:1.1;text-align:center}
-.cowboy-btn{font-family:'Rye',serif;padding:15px 40px;font-size:clamp(18px,3vw,26px);background:linear-gradient(to bottom,#5c3a1e,#3a2010);border:3px solid #8b5a2b;color:#f4e4bc;cursor:pointer;text-transform:uppercase;letter-spacing:3px;box-shadow:0 4px 15px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.1);transition:all .2s;-webkit-tap-highlight-color:transparent;touch-action:manipulation;margin:10px 0}
-.cowboy-btn:hover:not(.btn-disabled){background:linear-gradient(to bottom,#6b4423,#4a2a15);transform:translateY(-2px)}
-.cowboy-btn:active:not(.btn-disabled){transform:translateY(1px)}
-.cowboy-btn.btn-disabled{background:linear-gradient(to bottom,#444,#222)!important;cursor:not-allowed!important;opacity:.6!important;border-color:#555!important;color:#888!important;pointer-events:none!important;box-shadow:none!important}
+.cowboy-btn{font-family:'Rye',serif;padding:15px 40px;font-size:clamp(18px,3vw,26px);background:linear-gradient(to bottom,#5c3a1e,#3a2010);border:3px solid #8b5a2b;color:#f4e4bc;cursor:pointer;text-transform:uppercase;letter-spacing:3px;box-shadow:0 4px 15px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.1);transition:all .2s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.cowboy-btn:hover:not(:disabled){background:linear-gradient(to bottom,#6b4423,#4a2a15);transform:translateY(-2px)}
+.cowboy-btn:active:not(:disabled){transform:translateY(1px)}
+.cowboy-btn:disabled{background:linear-gradient(to bottom,#444,#222)!important;cursor:not-allowed!important;opacity:.6!important;border-color:#555!important;color:#888!important;pointer-events:none!important;box-shadow:none!important}
 #mission-success-screen{display:none;position:absolute;top:0;left:0;width:100%;height:100%;z-index:50;pointer-events:auto;overflow:hidden}
 .mission-bg{position:absolute;top:0;left:0;width:100%;height:100%;background-size:cover;background-position:center;background-repeat:no-repeat}
 .mission-success-overlay{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:80px}
 .play-btn{font-family:'Rye',serif;padding:18px 70px;font-size:clamp(20px,3.5vw,30px);background:linear-gradient(to bottom,#5c3a1e,#3a2010);border:3px solid #8b5a2b;color:#f4e4bc;cursor:pointer;text-transform:uppercase;letter-spacing:3px;box-shadow:0 6px 20px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.1);transition:all .2s;-webkit-tap-highlight-color:transparent;touch-action:manipulation;z-index:52}
-.play-btn:hover:not(.btn-disabled){background:linear-gradient(to bottom,#6b4423,#4a2a15);transform:translateY(-3px)}
-.play-btn:active:not(.btn-disabled){transform:translateY(1px)}
-.play-btn.btn-disabled{background:linear-gradient(to bottom,#444,#222)!important;cursor:not-allowed!important;opacity:.6!important;border-color:#555!important;color:#888!important;pointer-events:none!important;box-shadow:none!important}
+.play-btn:hover:not(:disabled){background:linear-gradient(to bottom,#6b4423,#4a2a15);transform:translateY(-3px)}
+.play-btn:active:not(:disabled){transform:translateY(1px)}
+.play-btn:disabled{background:linear-gradient(to bottom,#444,#222)!important;cursor:not-allowed!important;opacity:.6!important;border-color:#555!important;color:#888!important;pointer-events:none!important;box-shadow:none!important}
 #vignette{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5;background:radial-gradient(ellipse at center,transparent 60%,rgba(0,0,0,0.4) 100%);transition:opacity 0.5s ease}
 .reward-hint{margin-top:15px;font-family:'Rye',serif;font-size:clamp(12px,2vw,16px);color:#f4e4bc;opacity:0.85;text-shadow:1px 1px 2px rgba(0,0,0,.6);letter-spacing:1px}
 </style>
@@ -114,20 +114,20 @@ body.iphone .hud-panel{transform:translateY(76%);}
 <div class="loading-container" id="loading-container">
 <div class="loading-bar" id="loading-bar"></div>
 </div>
-<div class="cowboy-btn btn-disabled" id="startBtn" role="button" tabindex="0">НАЧАТЬ ОХОТУ</div>
+<button class="cowboy-btn" id="startBtn" disabled>НАЧАТЬ ОХОТУ</button>
 </div>
 <div id="lose-screen" class="poster-screen">
 <div class="wanted-poster">
 <h1 class="main-title">ТЕБЯ СЪЕЛИ</h1>
 <div class="desc" id="lose-desc"></div>
-<div class="cowboy-btn" id="restartBtn" role="button" tabindex="0">🎬 ПОВТОРИТЬ</div>
+<button class="cowboy-btn" id="restartBtn">🎬 ПОВТОРИТЬ</button>
 <div class="reward-hint">Просмотр рекламы даст +50 золота</div>
 </div>
 </div>
 <div id="mission-success-screen">
 <div class="mission-bg" id="mission-bg"></div>
 <div class="mission-success-overlay">
-<div class="play-btn" id="playBtn" role="button" tabindex="0">ИГРАТЬ</div>
+<button class="play-btn" id="playBtn">ИГРАТЬ</button>
 </div>
 </div>
 <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
@@ -179,6 +179,7 @@ function handleVisibilityChange(isHidden){
     }
 }
 
+// ===== АЛГОРИТМ REWARD-РЕКЛАМЫ (взят из SAMPLER HENDRIX 5.0) =====
 function checkRewardAdReadiness(){
     if(!isVkEnvironment||!vkBridge)return;
     vkBridge.send('VKWebAppCheckNativeAds',{ad_format:'reward'})
@@ -218,6 +219,7 @@ function showRewardAd(){
         });
     });
 }
+// ===== КОНЕЦ АЛГОРИТМА REWARD =====
 
 const vkShare=t=>isVkEnvironment&&vkBridge?vkBridge.send('VKWebAppShare',{text:t}).catch(()=>{}):null;
 const vkTapticFeedback=(t='light')=>isVkEnvironment&&vkBridge?vkBridge.send('VKWebAppTapticFeedback',{type:t}).catch(()=>{}):null;
@@ -714,6 +716,7 @@ function init(){
     musicBtn.addEventListener('click',e=>{e.stopPropagation();toggleMute()});
     menuBtn.addEventListener('click',e=>{e.stopPropagation();returnToMenu()});
 
+    // Периодическая проверка готовности reward-рекламы (каждые 30 сек)
     setInterval(checkRewardAdReadiness, 30000);
 
     if(isMob){
@@ -790,19 +793,18 @@ function init(){
     const doStart=()=>{
         if(starting)return;
         starting=true;
-        startBtnMain.classList.add('btn-disabled');
+        startBtnMain.disabled = true;
+        // УБРАЛИ РЕКЛАМУ: старт без рекламы
         starting=false;
-        startBtnMain.classList.remove('btn-disabled');
+        startBtnMain.disabled = false;
         sG();
     };
     startBtnMain.addEventListener('click',e=>{
         if(e.cancelable)e.preventDefault();
-        if(startBtnMain.classList.contains('btn-disabled'))return;
         doStart();
     });
     startBtnMain.addEventListener('touchend',e=>{
         if(e.cancelable)e.preventDefault();
-        if(startBtnMain.classList.contains('btn-disabled'))return;
         doStart();
     });
 
@@ -810,36 +812,38 @@ function init(){
     const doPlay=()=>{
         if(missionChanging)return;
         missionChanging=true;
-        playBtn.classList.add('btn-disabled');
+        playBtn.disabled = true;
         stopGameMusic();
+        // УБРАЛИ РЕКЛАМУ: следующая миссия без рекламы
         missionChanging=false;
-        playBtn.classList.remove('btn-disabled');
+        playBtn.disabled = false;
         nextMission();
     };
     playBtn.addEventListener('click',e=>{
         if(e.cancelable)e.preventDefault();
         e.stopPropagation();
-        if(playBtn.classList.contains('btn-disabled'))return;
         doPlay();
     });
     playBtn.addEventListener('touchend',e=>{
         if(e.cancelable)e.preventDefault();
         e.stopPropagation();
-        if(playBtn.classList.contains('btn-disabled'))return;
         doPlay();
     });
 
+    // ===== ГЛАВНОЕ ИЗМЕНЕНИЕ: REWARD-РЕКЛАМА ПРИ ПОВТОРНОМ ЗАПУСКЕ =====
     const restartBtn=document.getElementById('restartBtn');
     const doRestart=()=>{
         if(restarting)return;
         restarting=true;
-        restartBtn.classList.add('btn-disabled');
+        restartBtn.disabled = true;
         
+        // Показываем reward-рекламу
         showRewardAd().then((result)=>{
             restarting=false;
             
             if(result.success){
                 console.log('✅ Реклама просмотрена, добавляем +50 золота');
+                // Добавляем награду +50 золота к сохранению перед перезагрузкой
                 loadGoldProgress().then((saved)=>{
                     const currentGold = (saved && typeof saved.gold === 'number') ? saved.gold : 0;
                     const currentMissionLevel = (saved && saved.missionLevel) ? saved.missionLevel : 1;
@@ -856,6 +860,7 @@ function init(){
                 });
             } else {
                 console.log('❌ Реклама не просмотрена:', result.reason);
+                // Перезагружаем без награды
                 setTimeout(()=>location.reload(), 300);
             }
         }).catch((err)=>{
@@ -867,22 +872,22 @@ function init(){
     restartBtn.addEventListener('click',e=>{
         if(e.cancelable)e.preventDefault();
         e.stopPropagation();
-        if(restartBtn.classList.contains('btn-disabled'))return;
         doRestart();
     });
     restartBtn.addEventListener('touchend',e=>{
         if(e.cancelable)e.preventDefault();
         e.stopPropagation();
-        if(restartBtn.classList.contains('btn-disabled'))return;
         doRestart();
     });
+    // ===== КОНЕЦ ГЛАВНОГО ИЗМЕНЕНИЯ =====
 
     let loadProgress=0;
-    const loadInterval=setInterval(()=>{loadProgress+=Math.random()*15+5;if(loadProgress>=100){loadProgress=100;clearInterval(loadInterval);startBtnMain.classList.remove('btn-disabled')}document.getElementById('loading-bar').style.width=loadProgress+'%'},30);
+    const loadInterval=setInterval(()=>{loadProgress+=Math.random()*15+5;if(loadProgress>=100){loadProgress=100;clearInterval(loadInterval);startBtnMain.disabled=false}document.getElementById('loading-bar').style.width=loadProgress+'%'},30);
     anim()
 }
 
 function showMissionSuccess(){
+    // УБРАЛИ РЕКЛАМУ
     stopGameMusic();
     saveGoldProgress();
     startVictoryRadio();
@@ -900,7 +905,7 @@ function showSuccessUI(){
         missionBg.style.backgroundImage='url("https://sexexe.github.io/croco/ekranF.jpg")';
     }
     
-    playBtn.classList.remove('btn-disabled');
+    playBtn.disabled=false;
     missionScreen.style.display='block';
 }
 
@@ -1264,7 +1269,7 @@ function uDN(d){
     else if(isMorning)targetGrassMat=mt.grassMorning;
     if(targetGrassMat!==lastGrassMat){for(let i=0;i<grassMeshes.length;i++){grassMeshes[i].material=targetGrassMat}lastGrassMat=targetGrassMat}
 }
-function returnToMenu(){ia=false;pl.d=true;isLeftMouseDown=false;isRightMouseDown=false;isTwoFingersTouching=false;stopBurst();if(radioHeavyweight)radioHeavyweight.pause();if(radioDark)radioDark.pause();if(ax)ax.suspend();document.getElementById('overlay').style.display='flex';document.getElementById('lose-screen').style.display='none';document.getElementById('mission-success-screen').style.display='none';const startBtn=document.getElementById('startBtn');startBtn.classList.remove('btn-disabled');startBtn.innerText='НАЧАТЬ ОХОТУ';document.getElementById('loading-bar').style.width='0%';let loadProgress=0;const loadInterval=setInterval(()=>{loadProgress+=Math.random()*15+5;if(loadProgress>=100){loadProgress=100;clearInterval(loadInterval);startBtn.classList.remove('btn-disabled')}document.getElementById('loading-bar').style.width=loadProgress+'%'},30)}
+function returnToMenu(){ia=false;pl.d=true;isLeftMouseDown=false;isRightMouseDown=false;isTwoFingersTouching=false;stopBurst();if(radioHeavyweight)radioHeavyweight.pause();if(radioDark)radioDark.pause();if(ax)ax.suspend();document.getElementById('overlay').style.display='flex';document.getElementById('lose-screen').style.display='none';document.getElementById('mission-success-screen').style.display='none';const startBtn=document.getElementById('startBtn');startBtn.disabled=false;startBtn.innerText='НАЧАТЬ ОХОТУ';document.getElementById('loading-bar').style.width='0%';let loadProgress=0;const loadInterval=setInterval(()=>{loadProgress+=Math.random()*15+5;if(loadProgress>=100){loadProgress=100;clearInterval(loadInterval);startBtn.disabled=false}document.getElementById('loading-bar').style.width=loadProgress+'%'},30)}
 window.sG=function(){
     if(ia && !pl.d) return;
     document.getElementById('overlay').style.display='none';document.getElementById('lose-screen').style.display='none';document.getElementById('mission-success-screen').style.display='none';ia=true;pl.hp=100;pl.a=50;pl.d=false;killed=0;isStopped=true;yaw=0;pitch=0;gt=0;currentDay=1;lastLootDay=-1;lootSpawnedToday=false;radioManualOverride=false;morningStartTime=performance.now();coinsSpawnedThisNight=false;isLeftMouseDown=false;isRightMouseDown=false;isTwoFingersTouching=false;stopBurst();stopGameMusic();corpses.forEach(c=>{if(c.userData&&c.userData.flies)scn.remove(c.userData.flies);scn.remove(c)});corpses=[];cam.position.set(0,2,15);updateCamRot();updateMoveBtn();initAudio();startDefaultRadio();spawnMorningLoot();en.forEach(e=>scn.remove(e.mesh));en=[];db.forEach(b=>scn.remove(b));db=[];cr.forEach(c=>{scn.remove(c)});cr=[];
@@ -1423,6 +1428,7 @@ function upd(d){
     }
 }
 function showLoseUI(){
+    // УБРАЛИ РЕКЛАМУ ПРИ ПРОИГРЫШЕ
     document.getElementById('lose-desc').innerHTML='<span class="scl-gold">ЗОЛОТО</span>: '+pl.g+'<br>Крокодилы выиграли.';
     document.getElementById('lose-screen').style.display='flex';
 }
