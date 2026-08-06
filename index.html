@@ -272,7 +272,7 @@ function loadGoldProgress(){
     });
 }
 
-const C={ms:100,ws:200,tc:125,rc:90,crc:50,mv:4,fr:0.1,bs:120,dd:190};
+const C={ms:100,ws:200,tc:125,rc:90,crc:50,mv:4,fr:0.1,bs:120,dd:180};
 const isMob=/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)||innerWidth<800;
 const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent);
 const isIPhoneOnly=/iPhone|iPod/i.test(navigator.userAgent);
@@ -383,11 +383,11 @@ function createConstellations(){
 
 const SKY_KEYS=[
 {t:0.000, top:0x2a1b3d, bot:0xff88bb, sun:[-100,2,-100],  sunCol:0xff88aa, si:0.60, amb:0xffaacc, ai:0.40, mi:0.80, exp:0.70, fog:0x6a4050, fd:0.011, stars:1.00, sh:0.85, sBias:-0.001, sNBias:0.02, sRad:1.5},
-{t:0.158, top:0x00aaff, bot:0xffffff, sun:[50,80,30],     sunCol:0xffffff, si:1.20, amb:0xffffff, ai:0.60, mi:0.00, exp:1.00, fog:0xc0d8e8, fd:0.007, stars:0.00, sh:1.00, sBias:-0.001, sNBias:0.02, sRad:1.0},
+{t:0.1667, top:0x00aaff, bot:0xffffff, sun:[50,80,30],     sunCol:0xffffff, si:1.20, amb:0xffffff, ai:0.60, mi:0.00, exp:1.00, fog:0xc0d8e8, fd:0.007, stars:0.00, sh:1.00, sBias:-0.001, sNBias:0.02, sRad:1.0},
 {t:0.200, top:0x00aaff, bot:0xaaddff, sun:[50,80,30],     sunCol:0xffffff, si:1.20, amb:0xffffff, ai:0.60, mi:0.00, exp:1.00, fog:0xa0c8e0, fd:0.006, stars:0.00, sh:0.85, sBias:-0.001, sNBias:0.02, sRad:1.0},
-{t:0.263, top:0x00aaff, bot:0xffffff, sun:[50,80,30],     sunCol:0xffffff, si:1.20, amb:0xffffff, ai:0.60, mi:0.00, exp:1.00, fog:0xc0d8e8, fd:0.007, stars:0.00, sh:0.85, sBias:-0.001, sNBias:0.02, sRad:1.0},
-{t:0.421, top:0x00aaff, bot:0xffeeaa, sun:[-60,30,-60],   sunCol:0xffd080, si:1.00, amb:0xffeedd, ai:0.55, mi:0.10, exp:0.95, fog:0xb0a880, fd:0.008, stars:0.00, sh:0.85, sBias:-0.001, sNBias:0.02, sRad:1.2},
-{t:0.526, top:0x2a1b3d, bot:0xff88bb, sun:[-100,2,-100],  sunCol:0xff88aa, si:0.80, amb:0xffaacc, ai:0.45, mi:0.30, exp:0.80, fog:0x6a4050, fd:0.011, stars:0.20, sh:0.85, sBias:-0.0015, sNBias:0.03, sRad:1.8},
+{t:0.25, top:0x00aaff, bot:0xffffff, sun:[50,80,30],     sunCol:0xffffff, si:1.20, amb:0xffffff, ai:0.60, mi:0.00, exp:1.00, fog:0xc0d8e8, fd:0.007, stars:0.00, sh:0.85, sBias:-0.001, sNBias:0.02, sRad:1.0},
+{t:0.3333, top:0x00aaff, bot:0xffeeaa, sun:[-60,30,-60],   sunCol:0xffd080, si:1.00, amb:0xffeedd, ai:0.55, mi:0.10, exp:0.95, fog:0xb0a880, fd:0.008, stars:0.00, sh:0.85, sBias:-0.001, sNBias:0.02, sRad:1.2},
+{t:0.5, top:0x2a1b3d, bot:0xff88bb, sun:[-100,2,-100],  sunCol:0xff88aa, si:0.80, amb:0xffaacc, ai:0.45, mi:0.30, exp:0.80, fog:0x6a4050, fd:0.011, stars:0.20, sh:0.85, sBias:-0.0015, sNBias:0.03, sRad:1.8},
 {t:0.543, top:0x261830, bot:0xcc6688, sun:[-100,0,-100],  sunCol:0xff7799, si:0.55, amb:0xee99bb, ai:0.38, mi:0.45, exp:0.70, fog:0x553344, fd:0.012, stars:0.40, sh:0.75, sBias:-0.002, sNBias:0.04, sRad:2.2},
 {t:0.560, top:0x1a1025, bot:0xff5533, sun:[-100,-10,-100],sunCol:0xff9966, si:0.30, amb:0x886688, ai:0.28, mi:0.60, exp:0.55, fog:0x33181a, fd:0.013, stars:0.70, sh:0.65, sBias:-0.0025, sNBias:0.05, sRad:2.5},
 {t:0.600, top:0x141028, bot:0xbb4444, sun:[-100,-15,-100],sunCol:0xffaa88, si:0.22, amb:0x665577, ai:0.24, mi:0.70, exp:0.48, fog:0x241418, fd:0.014, stars:0.85, sh:0.55, sBias:-0.003, sNBias:0.06, sRad:3.0},
@@ -533,7 +533,7 @@ function toggleMute(){
         }
     }
 }
-function updateMusicVolumes(){if(!radioPlaying||radioManualOverride||isMuted)return;if(!radioHeavyweight||!radioDark)return;const px=cam.position.x,pz=cam.position.z;const dist=Math.sqrt(px*px+pz*pz);const maxDist=C.ms/2;const normDist=Math.min(dist/maxDist,1);const posVol=1.0-normDist*0.9;const baseMusicVol=0.5*posVol;const isMorning=gt>=0&&gt<30/190;const isDay=gt>=30/190&&gt<50/190;const isEvening=gt>=50/190&&gt<100/190;const isNight=gt>=100/190;let hwVol=0,dkVol=0;if(isMorning){let fv=0;if(morningStartTime>0){const el=(performance.now()-morningStartTime)/1000;if(el<5)fv=0;else if(el<20)fv=baseMusicVol*((el-5)/15);else fv=baseMusicVol}hwVol=fv;dkVol=0}else if(isDay){hwVol=baseMusicVol;dkVol=0}else if(isEvening){const t=(gt-50/190)/(50/190);hwVol=baseMusicVol*(1-t);dkVol=baseMusicVol*t}else if(isNight){const timeUntilMorning=1-gt;const secUntilMorning=timeUntilMorning*C.dd;if(secUntilMorning<=10)dkVol=baseMusicVol*(secUntilMorning/10);else dkVol=baseMusicVol;hwVol=0}try{radioHeavyweight.volume=hwVol;radioDark.volume=dkVol}catch(e){}}
+function updateMusicVolumes(){if(!radioPlaying||radioManualOverride||isMuted)return;if(!radioHeavyweight||!radioDark)return;const px=cam.position.x,pz=cam.position.z;const dist=Math.sqrt(px*px+pz*pz);const maxDist=C.ms/2;const normDist=Math.min(dist/maxDist,1);const posVol=1.0-normDist*0.9;const baseMusicVol=0.5*posVol;const isMorning=gt>=0&&gt<30/180;const isDay=gt>=30/180&&gt<45/180;const isEvening=gt>=45/180&&gt<90/180;const isNight=gt>=90/180;let hwVol=0,dkVol=0;if(isMorning){let fv=0;if(morningStartTime>0){const el=(performance.now()-morningStartTime)/1000;if(el<5)fv=0;else if(el<20)fv=baseMusicVol*((el-5)/15);else fv=baseMusicVol}hwVol=fv;dkVol=0}else if(isDay){hwVol=baseMusicVol;dkVol=0}else if(isEvening){const t=(gt-45/180)/(45/180);hwVol=baseMusicVol*(1-t);dkVol=baseMusicVol*t}else if(isNight){const timeUntilMorning=1-gt;const secUntilMorning=timeUntilMorning*C.dd;if(secUntilMorning<=10)dkVol=baseMusicVol*(secUntilMorning/10);else dkVol=baseMusicVol;hwVol=0}try{radioHeavyweight.volume=hwVol;radioDark.volume=dkVol}catch(e){}}
 function startDefaultRadio(){initAudio();if(!radioHeavyweight)radioHeavyweight=createAudioElement(HEAVYWEIGHT_URL);if(!radioDark)radioDark=createAudioElement(DARK_URL);radioHeavyweight.play().catch(()=>{});radioDark.play().catch(()=>{});radioPlaying=true;document.getElementById('musicBtn').classList.add('playing');updateMusicVolumes();if(isMuted){document.getElementById('musicBtn').innerHTML='🔇';document.getElementById('musicBtn').classList.remove('playing');if(radioHeavyweight)radioHeavyweight.pause();if(radioDark)radioDark.pause();if(ax&&ax.state==='running')ax.suspend()}}
 function stopGameMusic(){
     if(radioHeavyweight)radioHeavyweight.pause();
@@ -619,7 +619,7 @@ function sfxAmmo(){if(!ax||isMuted)return;if(ax.state!=='running')ax.resume().ca
 function sfxHurt(){if(!ax||isMuted)return;if(ax.state!=='running')ax.resume().catch(()=>{});try{const t=ax.currentTime,o=ax.createOscillator();o.type='sine';o.frequency.setValueAtTime(60,t);o.frequency.exponentialRampToValueAtTime(40,t+.25);const g=ax.createGain();g.gain.setValueAtTime(.33,t);g.gain.exponentialRampToValueAtTime(.001,t+.25);o.connect(g);g.connect(ax.destination);o.start(t);o.stop(t+.25)}catch(e){}}
 function sfxBird(){if(!ax||isMuted)return;if(ax.state!=='running')ax.resume().catch(()=>{});try{const t=ax.currentTime,baseF=1800+Math.random()*1200,count=2+Math.floor(Math.random()*2);for(let i=0;i<count;i++){const o=ax.createOscillator();o.type='sine';const st=t+i*.15;o.frequency.setValueAtTime(baseF+Math.random()*300,st);o.frequency.linearRampToValueAtTime(baseF-50+Math.random()*200,st+.12);const g=ax.createGain();g.gain.setValueAtTime(0,st);g.gain.linearRampToValueAtTime(.052,st+.02);g.gain.exponentialRampToValueAtTime(.001,st+.12);o.connect(g);g.connect(ax.destination);o.start(st);o.stop(st+.12)}}catch(e){}}
 function sfxGrowl(vol){if(!ax||isMuted||vol<=0)return;if(ax.state!=='running')ax.resume().catch(()=>{});try{const t=ax.currentTime;const o=ax.createOscillator();o.type='sawtooth';o.frequency.setValueAtTime(25+Math.random()*10,t);o.frequency.linearRampToValueAtTime(15+Math.random()*5,t+1.5);const lfo=ax.createOscillator();lfo.type='sine';lfo.frequency.value=4+Math.random()*4;const lfoGain=ax.createGain();lfoGain.gain.value=8;lfo.connect(lfoGain);lfoGain.connect(o.frequency);const g=ax.createGain();g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol*.5,t+.2);g.gain.setValueAtTime(vol*.5,t+1.0);g.gain.exponentialRampToValueAtTime(.001,t+1.5);const f=ax.createBiquadFilter();f.type='lowpass';f.frequency.setValueAtTime(150,t);f.frequency.linearRampToValueAtTime(40,t+1.5);f.Q.value=5;o.connect(f);f.connect(g);g.connect(ax.destination);o.start(t);o.stop(t+1.6);lfo.start(t);lfo.stop(t+1.6);const sub=ax.createOscillator();sub.type='sine';sub.frequency.setValueAtTime(18+Math.random()*5,t);const sg=ax.createGain();sg.gain.setValueAtTime(0,t);sg.gain.linearRampToValueAtTime(vol*.3,t+.2);sg.gain.exponentialRampToValueAtTime(.001,t+1.5);sub.connect(sg);sg.connect(ax.destination);sub.start(t);sub.stop(t+1.6)}catch(e){}}
-function updateAmbient(d){if(!ax||!ia||pl.d||isMuted)return;birdTimer+=d;const isMorning=gt>=0&&gt<30/190;if(isMorning&&birdTimer>3+Math.random()*2){sfxBird();birdTimer=0}else if(!isMorning)birdTimer=0;let minDist=999;const px=cam.position.x,pz=cam.position.z;for(let i=0;i<en.length;i++){const e=en[i];if(!e||!e.mesh)continue;const dx=e.mesh.position.x-px,dz=e.mesh.position.z-pz;const dist=Math.sqrt(dx*dx+dz*dz);if(dist<minDist)minDist=dist}const growlVol=minDist<30?Math.max(0,(30-minDist)/30):0;growlTimer+=d;if(growlVol>0&&growlTimer>1.8/(growlVol+.1)){sfxGrowl(growlVol);growlTimer=0}else if(growlVol<=0)growlTimer=0}
+function updateAmbient(d){if(!ax||!ia||pl.d||isMuted)return;birdTimer+=d;const isMorning=gt>=0&&gt<30/180;if(isMorning&&birdTimer>3+Math.random()*2){sfxBird();birdTimer=0}else if(!isMorning)birdTimer=0;let minDist=999;const px=cam.position.x,pz=cam.position.z;for(let i=0;i<en.length;i++){const e=en[i];if(!e||!e.mesh)continue;const dx=e.mesh.position.x-px,dz=e.mesh.position.z-pz;const dist=Math.sqrt(dx*dx+dz*dz);if(dist<minDist)minDist=dist}const growlVol=minDist<30?Math.max(0,(30-minDist)/30):0;growlTimer+=d;if(growlVol>0&&growlTimer>1.8/(growlVol+.1)){sfxGrowl(growlVol);growlTimer=0}else if(growlVol<=0)growlTimer=0}
 function createFlies(pos){const flyCount=isMob?4:8,positions=new Float32Array(flyCount*3),flyData=[];for(let i=0;i<flyCount;i++){const angle=Math.random()*Math.PI*2,radius=.2+Math.random()*.6,yOff=.4+Math.random()*.5;positions[i*3]=Math.cos(angle)*radius;positions[i*3+1]=yOff;positions[i*3+2]=Math.sin(angle)*radius;flyData.push({angle,radius,yOff,speed:3+Math.random()*4,ySpeed:2+Math.random()*3})}const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(positions,3));const pts=new THREE.Points(geo,new THREE.PointsMaterial({color:0x000000,size:.015,sizeAttenuation:true}));pts.position.copy(pos);pts.position.y=.2;pts.userData={flies:flyData};scn.add(pts);db.push(pts);return pts}
 function updateFlies(dt){db.forEach(obj=>{if(obj.isPoints&&obj.userData.flies){const pos=obj.geometry.attributes.position;for(let i=0;i<obj.userData.flies.length;i++){const f=obj.userData.flies[i];f.angle+=f.speed*dt;pos.setXYZ(i,Math.cos(f.angle)*f.radius,f.yOff+Math.sin(performance.now()*.007*f.ySpeed)*.12,Math.sin(f.angle)*f.radius)}pos.needsUpdate=true}})}
 
@@ -687,7 +687,7 @@ voodooGroup.traverse(child=>{
     }
 });
 voodooLocalLight=new THREE.PointLight(0xffffff,2.0,8.0,1.5);voodooLocalLight.position.set(0,4.0,0);voodooLocalLight.castShadow=false;scn.add(voodooLocalLight);eveningSunLight=new THREE.DirectionalLight(0xff66b2,0);eveningSunLight.position.set(-80,4,-60);eveningSunLight.castShadow=false;scn.add(eveningSunLight)}
-function updateVoodoo(d,timeOfDay){if(!voodooGroup)return;const isMorning=gt>=0&&gt<30/190;const isDay=gt>=30/190&&gt<50/190;const isEvening=gt>=50/190&&gt<100/190;const isNight=gt>=100/190;const isDancing=(isMorning||isDay||isEvening)&&radioPlaying&&!radioManualOverride&&radioHeavyweight&&radioHeavyweight.volume>0.01;if(voodooGroup)voodooGroup.visible=!isNight;if(voodooLocalLight){voodooLocalLight.visible=true;voodooLocalLight.intensity=2.0}
+function updateVoodoo(d,timeOfDay){if(!voodooGroup)return;const isMorning=gt>=0&&gt<30/180;const isDay=gt>=30/180&&gt<45/180;const isEvening=gt>=45/180&&gt<90/180;const isNight=gt>=90/180;const isDancing=(isMorning||isDay||isEvening)&&radioPlaying&&!radioManualOverride&&radioHeavyweight&&radioHeavyweight.volume>0.01;if(voodooGroup)voodooGroup.visible=!isNight;if(voodooLocalLight){voodooLocalLight.visible=true;voodooLocalLight.intensity=2.0}
 if(eveningSunLight){eveningSunLight.visible=false;eveningSunLight.intensity=0;}
 if(voodooGroup&&isDancing){const elapsed=performance.now()*.001*0.4;const t=elapsed*0.4;const armT=elapsed*0.2;const bassN=Math.abs(Math.sin(elapsed*2*Math.PI));const midN=Math.abs(Math.sin(elapsed*1*Math.PI));let bodyPosY=0,lArmRotX=-0.1,lArmRotZ=0.15,rArmRotX=-0.1,rArmRotZ=-0.15,lElbowRotX=-0.2,rElbowRotX=-0.2,lLegRotZ=0.05,rLegRotZ=-0.05;const armWave=Math.sin(armT*2.5);lArmRotX=-1.0+armWave*0.4*midN;lArmRotZ=0.6*armWave;rArmRotX=-1.0-armWave*0.4*midN;rArmRotZ=-0.6*armWave;lElbowRotX=-0.4-Math.abs(armWave)*0.3*bassN;rElbowRotX=-0.4-Math.abs(armWave)*0.3*bassN;bodyPosY=Math.abs(Math.sin(t*2))*0.08*bassN;lLegRotZ=0.1+Math.sin(t*2)*0.15*bassN;rLegRotZ=-0.1-Math.sin(t*2+Math.PI)*0.15*bassN;if(voodooParts.body)voodooParts.body.position.y=bodyPosY;if(voodooParts.head){voodooParts.head.rotation.x=armWave*0.15*midN;voodooParts.head.rotation.z=-armWave*0.1*midN}if(voodooParts.lArm){voodooParts.lArm.rotation.x=lArmRotX;voodooParts.lArm.rotation.z=lArmRotZ}if(voodooParts.rArm){voodooParts.rArm.rotation.x=rArmRotX;voodooParts.rArm.rotation.z=rArmRotZ}if(voodooParts.lElbow)voodooParts.lElbow.rotation.x=lElbowRotX;if(voodooParts.rElbow)voodooParts.rElbow.rotation.x=rElbowRotX;if(voodooParts.lLeg)voodooParts.lLeg.rotation.z=lLegRotZ;if(voodooParts.rLeg)voodooParts.rLeg.rotation.z=rLegRotZ;if(voodooParts.lKnee)voodooParts.lKnee.rotation.x=Math.abs(Math.sin(t*2))*0.4;if(voodooParts.rKnee)voodooParts.rKnee.rotation.x=Math.abs(Math.sin(t*2+Math.PI))*0.4;if(voodooParts.gluteL&&voodooParts.gluteR){const gluteMove=Math.sin(t*1.8)*0.1;const gluteBounce=Math.abs(Math.sin(t*2.5))*0.08;voodooParts.gluteL.scale.z=1.26+gluteMove+gluteBounce;voodooParts.gluteR.scale.z=1.26-gluteMove+gluteBounce}}}
 const treePositions=[];
@@ -1214,10 +1214,10 @@ function cCr(){const g=new THREE.Group(),bd=new THREE.Mesh(new THREE.BoxGeometry
 function uDN(d){
     gt+=d/C.dd;
     if(gt>=1){gt-=1;currentDay++;document.getElementById('day-display').innerText='День '+currentDay;lootSpawnedToday=false}
-    const isMorning=gt>=0&&gt<30/190;
-    const isDay=gt>=30/190&&gt<50/190;
-    const isEvening=gt>=50/190&&gt<100/190;
-    const isNight=gt>=100/190;
+    const isMorning=gt>=0&&gt<30/180;
+    const isDay=gt>=30/180&&gt<45/180;
+    const isEvening=gt>=45/180&&gt<90/180;
+    const isNight=gt>=90/180;
     if(isMorning&&morningStartTime<0)morningStartTime=performance.now();
     if(!isMorning)morningStartTime=-1;
     if(isMorning&&!lootSpawnedToday){spawnMorningLoot();lootSpawnedToday=true}
@@ -1240,7 +1240,7 @@ function uDN(d){
     }
     
     if(isEvening){
-        const t=(gt-50/190)/(50/190);
+        const t=(gt-45/180)/(45/180);
         _skyTmpC.setHex(0xff66b2).multiplyScalar(1.15);
         sl.color.setHex(0xffffff).lerp(_skyTmpC, 0.35+0.55*Math.sin(t*Math.PI));
         sl.intensity=sky.si+Math.sin(t*Math.PI)*0.6;
@@ -1329,7 +1329,7 @@ function upd(d){
         }
     }
     
-    const isNight=gt>=100/190;
+    const isNight=gt>=90/180;
     if(isNight&&en.length<3)sCr();
     if(!isNight&&en.length>0){
         en.forEach(e=>scn.remove(e.mesh));
