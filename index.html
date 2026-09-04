@@ -103,9 +103,7 @@ const isMob=/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.tes
 const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent);
 const isIPhoneOnly=/iPhone|iPod/i.test(navigator.userAgent);if(isIPhoneOnly)document.body.classList.add('iphone');
 const MAX_CORPSES=8;
-// ВОССТАНОВЛЕНО: множитель золота x2
 const GOLD_MULT=2;
-// ВОССТАНОВЛЕНО: уровень пола поднят над травой
 const FLOOR_Y=0.12;
 let cam,scn,rnd,pl={hp:100,g:0,a:50,d:false},pt=performance.now(),gt=0,en=[],bl=[],cr=[],pa=[],db=[],ia=false,ls=0,gn,sl,ml,al,sd,killed=0,totalKills=C.crc,isStopped=true,touchStartX=0,touchStartY=0,isDragging=false,yaw=0,pitch=0,birdTimer=0,growlTimer=0,currentDay=1,lastLootDay=-1,lootSpawnedToday=false,morningStartTime=-1,lastGrassMat=null;
 let radioHeavyweight=null,radioDark=null,radioPlaying=false,radioManualOverride=false;
@@ -123,6 +121,8 @@ const sparkCount=2400;
 let prevDistToHut=999;
 const CROC_GRID_SIZE=10;
 let crocGrid=new Map();
+let gridFrameCount=0;
+const TRUNK_MATERIALS=[0x7a5a3a,0x5c3a1e,0x8b5a2b,0x6b4423,0x4a2a15,0x9c6b3f,0x3a2010,0xa0724a,0x54331c,0x7d5233].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:.9}));
 let tvKeys={up:false,down:false,left:false,right:false,enter:false};
 document.addEventListener('keydown',(e)=>{if(e.code==='ArrowUp')tvKeys.up=true;else if(e.code==='ArrowDown')tvKeys.down=true;else if(e.code==='ArrowLeft')tvKeys.left=true;else if(e.code==='ArrowRight')tvKeys.right=true;else if(e.code==='Enter')tvKeys.enter=true;});
 document.addEventListener('keyup',(e)=>{if(e.code==='ArrowUp')tvKeys.up=false;else if(e.code==='ArrowDown')tvKeys.down=false;else if(e.code==='ArrowLeft')tvKeys.left=false;else if(e.code==='ArrowRight')tvKeys.right=false;else if(e.code==='Enter')tvKeys.enter=false;});
@@ -183,18 +183,15 @@ logMatBark:new THREE.MeshStandardMaterial({color:0x3a1a0a,roughness:1.0,metalnes
 flameMat:new THREE.MeshStandardMaterial({color:0xff5500,emissive:0xff4400,emissiveIntensity:3.0,transparent:true,opacity:0.8,roughness:0.2,side:THREE.DoubleSide}),
 flameMat2:new THREE.MeshStandardMaterial({color:0xff8800,emissive:0xff6600,emissiveIntensity:2.5,transparent:true,opacity:0.7,roughness:0.25,side:THREE.DoubleSide}),
 flameMat3:new THREE.MeshStandardMaterial({color:0xffaa33,emissive:0xff8833,emissiveIntensity:2.0,transparent:true,opacity:0.6,roughness:0.3,side:THREE.DoubleSide}),
-// ВОССТАНОВЛЕНО: искры в 2 раза ярче
 sparkMat:new THREE.PointsMaterial({color:new THREE.Color(0xffaa44).multiplyScalar(2),size:0.00234375,transparent:true,opacity:1.0,blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true}),
 emberMat:new THREE.MeshStandardMaterial({color:0xcc4400,emissive:0xaa3300,emissiveIntensity:0.6}),
 rugMat:new THREE.MeshStandardMaterial({color:0x5a3a22,roughness:1.0,side:THREE.DoubleSide}),
-// ВОССТАНОВЛЕНО: дверь DoubleSide (одинаковая внутри и снаружи)
 doorMat:new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.9,side:THREE.DoubleSide}),
 doorPlank:new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.85}),
 doorFrame:new THREE.MeshStandardMaterial({color:0x2a2a2a,roughness:0.4,metalness:0.8}),
 handleMat:new THREE.MeshStandardMaterial({color:0xbb9933,roughness:0.3,metalness:0.7})};
 let ax=null,_noiseBuffer=null,_masterOutput=null,_delayIn=null;
 function initAudio(){if(ax)return;try{const AC=window.AudioContext||window.webkitAudioContext;ax=new AC();const bufSize=ax.sampleRate*2;_noiseBuffer=ax.createBuffer(1,bufSize,ax.sampleRate);const data=_noiseBuffer.getChannelData(0);for(let i=0;i<bufSize;i++)data[i]=Math.random()*2-1;const comp=ax.createDynamicsCompressor();comp.threshold.value=-15;comp.knee.value=20;comp.ratio.value=12;comp.attack.value=0.001;comp.release.value=0.1;const saturator=ax.createWaveShaper();const curve=new Float32Array(256);for(let i=0;i<256;i++){const x=(i/128)-1;curve[i]=Math.tanh(x*2);}saturator.curve=curve;const limiter=ax.createDynamicsCompressor();limiter.threshold.value=-3;limiter.knee.value=0;limiter.ratio.value=20;limiter.attack.value=0.001;limiter.release.value=0.01;comp.connect(saturator);saturator.connect(limiter);limiter.connect(ax.destination);_masterOutput=comp;
-// ВОССТАНОВЛЕНО: двойной дилей для эффектов (кроме выстрела)
 _delayIn=ax.createGain();_delayIn.gain.value=1.0;
 const d1=ax.createDelay(1.0);d1.delayTime.value=0.27;
 const g1=ax.createGain();g1.gain.value=0.4;
@@ -203,26 +200,21 @@ const g2=ax.createGain();g2.gain.value=0.4;
 _delayIn.connect(d1);d1.connect(g1);g1.connect(_masterOutput);
 g1.connect(d2);d2.connect(g2);g2.connect(_masterOutput);
 if(ax.state==='suspended'){const resume=()=>{ax.resume();document.removeEventListener('touchstart',resume);document.removeEventListener('click',resume);document.removeEventListener('mousedown',resume)};document.addEventListener('touchstart',resume);document.addEventListener('click',resume);document.addEventListener('mousedown',resume);}}catch(e){}}
-// Шина эффектов: прямой сигнал + вход в двойной дилей
 function makeSfxOut(){const out=ax.createGain();out.gain.value=1;out.connect(_masterOutput);if(_delayIn)out.connect(_delayIn);return out;}
 function createAudioElement(url){const a=new Audio();a.loop=true;a.preload='auto';a.src=url;a.setAttribute('playsinline','');if(isIOS)a.setAttribute('x-webkit-airplay','allow');return a}
-// ВОССТАНОВЛЕНО: значок 🎵 при остановке музыки
 function toggleMute(){isMuted=!isMuted;const btn=document.getElementById('musicBtn');if(isMuted){btn.innerHTML='🔇';btn.classList.remove('playing');if(radioHeavyweight)radioHeavyweight.pause();if(radioDark)radioDark.pause();if(ax&&ax.state==='running')ax.suspend();}else{btn.innerHTML='🎵';if(!ax)initAudio();if(ax&&ax.state!=='running')ax.resume().catch(()=>{});if(radioPlaying){btn.classList.add('playing');if(radioHeavyweight)radioHeavyweight.play().catch(()=>{});if(radioDark)radioDark.play().catch(()=>{});}}}
 function updateMusicVolumes(){if(!radioPlaying||radioManualOverride||isMuted)return;if(!radioHeavyweight||!radioDark)return;const px=cam.position.x,pz=cam.position.z;const dist=Math.sqrt(px*px+pz*pz);const maxDist=C.ms/2;const normDist=Math.min(dist/maxDist,1);const posVol=1.0-normDist*0.9;const baseMusicVol=0.5*posVol;const isMorning=gt>=0&&gt<30/180;const isDay=gt>=30/180&&gt<45/180;const isEvening=gt>=45/180&&gt<90/180;const isNight=gt>=90/180;let hwVol=0,dkVol=0;if(isMorning){let fv=0;if(morningStartTime>0){const el=(performance.now()-morningStartTime)/1000;if(el<5)fv=0;else if(el<20)fv=baseMusicVol*((el-5)/15);else fv=baseMusicVol}hwVol=fv;dkVol=0}else if(isDay){hwVol=baseMusicVol;dkVol=0}else if(isEvening){const t=(gt-45/180)/(45/180);hwVol=baseMusicVol*(1-t);dkVol=baseMusicVol*t}else if(isNight){const timeUntilMorning=1-gt;const secUntilMorning=timeUntilMorning*C.dd;if(secUntilMorning<=10)dkVol=baseMusicVol*(secUntilMorning/10);else dkVol=baseMusicVol;hwVol=0}try{radioHeavyweight.volume=hwVol;radioDark.volume=dkVol}catch(e){}}
 function startDefaultRadio(){initAudio();if(!radioHeavyweight)radioHeavyweight=createAudioElement(HEAVYWEIGHT_URL);if(!radioDark)radioDark=createAudioElement(DARK_URL);radioHeavyweight.play().catch(()=>{});radioDark.play().catch(()=>{});radioPlaying=true;document.getElementById('musicBtn').classList.add('playing');updateMusicVolumes();if(isMuted){document.getElementById('musicBtn').innerHTML='🔇';document.getElementById('musicBtn').classList.remove('playing');if(radioHeavyweight)radioHeavyweight.pause();if(radioDark)radioDark.pause();if(ax&&ax.state==='running')ax.suspend()}}
 function stopGameMusic(){if(radioHeavyweight)radioHeavyweight.pause();if(radioDark)radioDark.pause();radioPlaying=false;const btn=document.getElementById('musicBtn');btn.classList.remove('playing');btn.innerHTML='🎵';}
 function startVictoryRadio(){initAudio();if(!radioHeavyweight)radioHeavyweight=createAudioElement(HEAVYWEIGHT_URL);if(radioDark){radioDark.pause();radioDark.volume=0;}if(ax&&ax.state!=='running')ax.resume().catch(()=>{});radioHeavyweight.volume=0.5;radioHeavyweight.play().catch(()=>{});radioPlaying=true;const btn=document.getElementById('musicBtn');btn.classList.add('playing');btn.innerHTML='🎵';if(isMuted){btn.innerHTML='🔇';btn.classList.remove('playing');if(radioHeavyweight)radioHeavyweight.pause();if(ax&&ax.state==='running')ax.suspend();}}
-// ВОССТАНОВЛЕНО: выстрел в 2 раза тише, БЕЗ дилея
 function sfxShoot(){if(!ax||isMuted||!_masterOutput)return;if(ax.state!=='running')ax.resume().catch(()=>{});const t=ax.currentTime;const shotOut=ax.createGain();shotOut.gain.value=0.5;shotOut.connect(_masterOutput);const cfg={subFreq:20,subDur:1.2,bodyFreq:50,bodyDur:0.7,crackFreq:6000,tailDur:2.0,distortion:7};function makeNoiseSource(){const src=ax.createBufferSource();src.buffer=_noiseBuffer;src.loop=true;return src;}const sub=ax.createOscillator();sub.type='sine';sub.frequency.setValueAtTime(cfg.subFreq*1.5,t);sub.frequency.exponentialRampToValueAtTime(cfg.subFreq,t+0.05);sub.frequency.exponentialRampToValueAtTime(cfg.subFreq*0.5,t+cfg.subDur);const subGain=ax.createGain();subGain.gain.setValueAtTime(0,t);subGain.gain.linearRampToValueAtTime(0.75,t+0.002);subGain.gain.exponentialRampToValueAtTime(0.01,t+cfg.subDur);const subDist=ax.createWaveShaper();const subCurve=new Float32Array(256);for(let i=0;i<256;i++){const x=(i/128)-1;subCurve[i]=Math.tanh(x*cfg.distortion);}subDist.curve=subCurve;sub.connect(subDist);subDist.connect(subGain);subGain.connect(shotOut);sub.start(t);sub.stop(t+cfg.subDur);sub.onended=()=>{try{sub.disconnect();subDist.disconnect();subGain.disconnect();}catch(e){}};const bodyNoise=makeNoiseSource();const bodyFilter=ax.createBiquadFilter();bodyFilter.type='bandpass';bodyFilter.frequency.setValueAtTime(cfg.bodyFreq*3,t);bodyFilter.frequency.exponentialRampToValueAtTime(cfg.bodyFreq,t+0.03);bodyFilter.Q.value=2;const bodyGain=ax.createGain();bodyGain.gain.setValueAtTime(0,t);bodyGain.gain.linearRampToValueAtTime(0.6,t+0.001);bodyGain.gain.exponentialRampToValueAtTime(0.01,t+cfg.bodyDur);const bodyDist=ax.createWaveShaper();const bodyCurve=new Float32Array(256);for(let i=0;i<256;i++){const x=(i/128)-1;bodyCurve[i]=(Math.PI+cfg.distortion)*x/(Math.PI+cfg.distortion*Math.abs(x));}bodyDist.curve=bodyCurve;bodyNoise.connect(bodyFilter);bodyFilter.connect(bodyDist);bodyDist.connect(bodyGain);bodyGain.connect(shotOut);bodyNoise.start(t);bodyNoise.stop(t+cfg.bodyDur);bodyNoise.onended=()=>{try{bodyNoise.disconnect();bodyFilter.disconnect();bodyDist.disconnect();bodyGain.disconnect();}catch(e){}};const crack=makeNoiseSource();const crackFilter=ax.createBiquadFilter();crackFilter.type='highpass';crackFilter.frequency.value=cfg.crackFreq;crackFilter.Q.value=1;const crackGain=ax.createGain();crackGain.gain.setValueAtTime(0.4,t);crackGain.gain.exponentialRampToValueAtTime(0.01,t+0.08);crack.connect(crackFilter);crackFilter.connect(crackGain);crackGain.connect(shotOut);crack.start(t);crack.stop(t+0.08);crack.onended=()=>{try{crack.disconnect();crackFilter.disconnect();crackGain.disconnect();}catch(e){}};const tail=makeNoiseSource();const tailFilter=ax.createBiquadFilter();tailFilter.type='lowpass';tailFilter.frequency.setValueAtTime(1500,t);tailFilter.frequency.exponentialRampToValueAtTime(300,t+cfg.tailDur);tailFilter.Q.value=0.5;const tailGain=ax.createGain();tailGain.gain.setValueAtTime(0.2,t+0.05);tailGain.gain.exponentialRampToValueAtTime(0.01,t+cfg.tailDur);tail.connect(tailFilter);tailFilter.connect(tailGain);tailGain.connect(shotOut);tail.start(t);tail.stop(t+cfg.tailDur);tail.onended=()=>{try{tail.disconnect();tailFilter.disconnect();tailGain.disconnect();}catch(e){}};const mech=makeNoiseSource();const mechFilter=ax.createBiquadFilter();mechFilter.type='bandpass';mechFilter.frequency.value=800;mechFilter.Q.value=5;const mechGain=ax.createGain();mechGain.gain.setValueAtTime(0,t+0.08);mechGain.gain.linearRampToValueAtTime(0.15,t+0.085);mechGain.gain.exponentialRampToValueAtTime(0.01,t+0.2);mech.connect(mechFilter);mechFilter.connect(mechGain);mechGain.connect(shotOut);mech.start(t+0.08);mech.stop(t+0.2);mech.onended=()=>{try{mech.disconnect();mechFilter.disconnect();mechGain.disconnect();}catch(e){}};const ring=ax.createOscillator();ring.type='triangle';ring.frequency.value=150+(7*30);const ringFilter=ax.createBiquadFilter();ringFilter.type='bandpass';ringFilter.frequency.value=ring.frequency.value;ringFilter.Q.value=15;const ringGain=ax.createGain();ringGain.gain.setValueAtTime(0,t+0.01);ringGain.gain.linearRampToValueAtTime(0.075,t+0.015);ringGain.gain.exponentialRampToValueAtTime(0.01,t+0.4);ring.connect(ringFilter);ringFilter.connect(ringGain);ringGain.connect(shotOut);ring.start(t);ring.stop(t+0.4);ring.onended=()=>{try{ring.disconnect();ringFilter.disconnect();ringGain.disconnect();}catch(e){}};}
 function sfxDrink(){if(!ax||isMuted||!_masterOutput)return;if(ax.state!=='running')ax.resume().catch(()=>{});try{const t=ax.currentTime;const out=makeSfxOut();function makeNoiseSource(){const src=ax.createBufferSource();src.buffer=_noiseBuffer;src.loop=true;return src;}const openClick=makeNoiseSource();const openFilter=ax.createBiquadFilter();openFilter.type='bandpass';openFilter.frequency.value=2500;openFilter.Q.value=3;const openGain=ax.createGain();openGain.gain.setValueAtTime(0.4,t);openGain.gain.exponentialRampToValueAtTime(0.01,t+0.05);openClick.connect(openFilter);openFilter.connect(openGain);openGain.connect(out);openClick.start(t);openClick.stop(t+0.05);openClick.onended=()=>{try{openClick.disconnect();openFilter.disconnect();openGain.disconnect();}catch(e){}};const hiss=makeNoiseSource();const hissFilter=ax.createBiquadFilter();hissFilter.type='highpass';hissFilter.frequency.value=4000;hissFilter.Q.value=0.5;const hissGain=ax.createGain();hissGain.gain.setValueAtTime(0,t+0.02);hissGain.gain.linearRampToValueAtTime(0.15,t+0.04);hissGain.gain.exponentialRampToValueAtTime(0.01,t+0.4);hiss.connect(hissFilter);hissFilter.connect(hissGain);hissGain.connect(out);hiss.start(t+0.02);hiss.stop(t+0.4);hiss.onended=()=>{try{hiss.disconnect();hissFilter.disconnect();hissGain.disconnect();}catch(e){}};for(let i=0;i<4;i++){const bubbleTime=t+0.3+i*0.12;const bubble=ax.createOscillator();bubble.type='sine';bubble.frequency.setValueAtTime(400+Math.random()*100,bubbleTime);bubble.frequency.exponentialRampToValueAtTime(150+Math.random()*50,bubbleTime+0.08);const bubbleGain=ax.createGain();bubbleGain.gain.setValueAtTime(0,bubbleTime);bubbleGain.gain.linearRampToValueAtTime(0.25,bubbleTime+0.01);bubbleGain.gain.exponentialRampToValueAtTime(0.01,bubbleTime+0.08);const bubbleFilter=ax.createBiquadFilter();bubbleFilter.type='lowpass';bubbleFilter.frequency.value=800;bubbleFilter.Q.value=2;bubble.connect(bubbleFilter);bubbleFilter.connect(bubbleGain);bubbleGain.connect(out);bubble.start(bubbleTime);bubble.stop(bubbleTime+0.1);bubble.onended=()=>{try{bubble.disconnect();bubbleFilter.disconnect();bubbleGain.disconnect();}catch(e){}};}for(let i=0;i<3;i++){const gulpTime=t+0.25+i*0.15;const gulp=ax.createOscillator();gulp.type='sine';gulp.frequency.setValueAtTime(200,gulpTime);gulp.frequency.exponentialRampToValueAtTime(80,gulpTime+0.07);const gulpGain=ax.createGain();gulpGain.gain.setValueAtTime(0,gulpTime);gulpGain.gain.linearRampToValueAtTime(0.3,gulpTime+0.005);gulpGain.gain.exponentialRampToValueAtTime(0.01,gulpTime+0.07);const gulpFilter=ax.createBiquadFilter();gulpFilter.type='lowpass';gulpFilter.frequency.value=500;gulpFilter.Q.value=3;gulp.connect(gulpFilter);gulpFilter.connect(gulpGain);gulpGain.connect(out);gulp.start(gulpTime);gulp.stop(gulpTime+0.08);gulp.onended=()=>{try{gulp.disconnect();gulpFilter.disconnect();gulpGain.disconnect();}catch(e){}};}const sigh=ax.createOscillator();sigh.type='sine';sigh.frequency.setValueAtTime(180,t+0.8);sigh.frequency.linearRampToValueAtTime(220,t+1.2);sigh.frequency.exponentialRampToValueAtTime(120,t+1.6);const sighGain=ax.createGain();sighGain.gain.setValueAtTime(0,t+0.8);sighGain.gain.linearRampToValueAtTime(0.2,t+0.95);sighGain.gain.exponentialRampToValueAtTime(0.01,t+1.6);const sighFilter=ax.createBiquadFilter();sighFilter.type='bandpass';sighFilter.frequency.value=400;sighFilter.Q.value=1;sigh.connect(sighFilter);sighFilter.connect(sighGain);sighGain.connect(out);sigh.start(t+0.8);sigh.stop(t+1.6);sigh.onended=()=>{try{sigh.disconnect();sighFilter.disconnect();sighGain.disconnect();}catch(e){}};}catch(e){}}
 function sfxCrocDeath(){if(!ax||isMuted)return;if(ax.state!=='running')ax.resume().catch(()=>{});try{const t=ax.currentTime;const out=makeSfxOut();const duration=6.5;const osc=ax.createOscillator();osc.type='sawtooth';osc.frequency.setValueAtTime(10,t);osc.frequency.exponentialRampToValueAtTime(4,t+duration);const vibrato=ax.createOscillator();vibrato.type='sine';vibrato.frequency.value=1.2;const vibratoGain=ax.createGain();vibratoGain.gain.value=3;vibrato.connect(vibratoGain);vibratoGain.connect(osc.frequency);const oscGain=ax.createGain();oscGain.gain.setValueAtTime(1.1,t);oscGain.gain.exponentialRampToValueAtTime(0.001,t+duration);const filter=ax.createBiquadFilter();filter.type='lowpass';filter.frequency.value=500;filter.Q.value=2;osc.connect(filter);filter.connect(oscGain);oscGain.connect(out);osc.start(t);vibrato.start(t);osc.stop(t+duration+0.1);vibrato.stop(t+duration+0.1);const bs=Math.floor(ax.sampleRate*duration),buf=ax.createBuffer(1,bs,ax.sampleRate),d=buf.getChannelData(0);for(let i=0;i<bs;i++)d[i]=(Math.random()*2-1);const noiseSource=ax.createBufferSource();noiseSource.buffer=buf;const noiseFilter=ax.createBiquadFilter();noiseFilter.type='bandpass';noiseFilter.frequency.value=900;noiseFilter.Q.value=3;const noiseGain=ax.createGain();noiseGain.gain.setValueAtTime(0.08,t);noiseGain.gain.exponentialRampToValueAtTime(0.001,t+duration);noiseSource.connect(noiseFilter);noiseFilter.connect(noiseGain);noiseGain.connect(out);noiseSource.start(t);noiseSource.stop(t+duration+0.1);}catch(e){}}
 function sfxGold(){if(!ax||isMuted)return;if(ax.state!=='running')ax.resume().catch(()=>{});try{const t=ax.currentTime;const out=makeSfxOut();[1000,1200].forEach((freq,i)=>{const o=ax.createOscillator();o.type='sine';o.frequency.value=freq;const g=ax.createGain();g.gain.setValueAtTime(0,t+i*.04);g.gain.linearRampToValueAtTime(.075,t+i*.04+.02);g.gain.exponentialRampToValueAtTime(.001,t+i*.04+.4);o.connect(g);g.connect(out);o.start(t+i*.04);o.stop(t+i*.04+.45)})}catch(e){}}
-// ВОССТАНОВЛЕНО: низкий щелчок патронов (420→140) + дилей
 function sfxAmmo(){if(!ax||isMuted)return;if(ax.state!=='running')ax.resume().catch(()=>{});try{const t=ax.currentTime;const out=makeSfxOut();const o=ax.createOscillator();o.type='square';o.frequency.setValueAtTime(420,t);o.frequency.exponentialRampToValueAtTime(140,t+.07);const g=ax.createGain();g.gain.setValueAtTime(.3,t);g.gain.exponentialRampToValueAtTime(.001,t+.09);o.connect(g);g.connect(out);o.start(t);o.stop(t+.09)}catch(e){}}
 function sfxHurt(){if(!ax||isMuted)return;if(ax.state!=='running')ax.resume().catch(()=>{});try{const t=ax.currentTime;const out=makeSfxOut();const o=ax.createOscillator();o.type='sine';o.frequency.setValueAtTime(60,t);o.frequency.exponentialRampToValueAtTime(40,t+.25);const g=ax.createGain();g.gain.setValueAtTime(.33,t);g.gain.exponentialRampToValueAtTime(.001,t+.25);o.connect(g);g.connect(out);o.start(t);o.stop(t+.25)}catch(e){}}
 function sfxBird(){if(!ax||isMuted)return;if(ax.state!=='running')ax.resume().catch(()=>{});try{const t=ax.currentTime;const out=makeSfxOut();const baseF=1800+Math.random()*1200,count=2+Math.floor(Math.random()*2);for(let i=0;i<count;i++){const o=ax.createOscillator();o.type='sine';const st=t+i*.15;o.frequency.setValueAtTime(baseF+Math.random()*300,st);o.frequency.linearRampToValueAtTime(baseF-50+Math.random()*200,st+.12);const g=ax.createGain();g.gain.setValueAtTime(0,st);g.gain.linearRampToValueAtTime(.052,st+.02);g.gain.exponentialRampToValueAtTime(.001,st+.12);o.connect(g);g.connect(out);o.start(st);o.stop(st+.12)}}catch(e){}}
 function sfxGrowl(vol){if(!ax||isMuted||vol<=0)return;if(ax.state!=='running')ax.resume().catch(()=>{});try{const t=ax.currentTime;const out=makeSfxOut();const o=ax.createOscillator();o.type='sawtooth';o.frequency.setValueAtTime(25+Math.random()*10,t);o.frequency.linearRampToValueAtTime(15+Math.random()*5,t+1.5);const lfo=ax.createOscillator();lfo.type='sine';lfo.frequency.value=4+Math.random()*4;const lfoGain=ax.createGain();lfoGain.gain.value=8;lfo.connect(lfoGain);lfoGain.connect(o.frequency);const g=ax.createGain();g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol*.5,t+.2);g.gain.setValueAtTime(vol*.5,t+1.0);g.gain.exponentialRampToValueAtTime(.001,t+1.5);const f=ax.createBiquadFilter();f.type='lowpass';f.frequency.setValueAtTime(150,t);f.frequency.linearRampToValueAtTime(40,t+1.5);f.Q.value=5;o.connect(f);f.connect(g);g.connect(out);o.start(t);o.stop(t+1.6);lfo.start(t);lfo.stop(t+1.6);const sub=ax.createOscillator();sub.type='sine';sub.frequency.setValueAtTime(18+Math.random()*5,t);const sg=ax.createGain();sg.gain.setValueAtTime(0,t);sg.gain.linearRampToValueAtTime(vol*.3,t+.2);sg.gain.exponentialRampToValueAtTime(.001,t+1.5);sub.connect(sg);sg.connect(out);sub.start(t);sub.stop(t+1.6)}catch(e){}}
-// ВОССТАНОВЛЕНО: новый звук двери (скрип петель + удар + щеколда) + дилей
 function sfxDoor(){if(!ax||isMuted)return;if(ax.state!=='running')ax.resume().catch(()=>{});try{const t=ax.currentTime;const out=makeSfxOut();
 const cr=ax.createOscillator();cr.type='sawtooth';
 cr.frequency.setValueAtTime(220,t);
@@ -280,7 +272,6 @@ if(!voodooGroup)return;
 const isMorning=gt>=0&&gt<30/180;const isDay=gt>=30/180&&gt<45/180;const isEvening=gt>=45/180&&gt<90/180;const isNight=gt>=90/180;
 const isDancing=isNight||((isMorning||isDay||isEvening)&&radioPlaying&&!radioManualOverride&&radioHeavyweight&&radioHeavyweight.volume>0.01);
 voodooGroup.visible=true;
-// Ночью стоит на приподнятом белом полу домика
 if(isNight){voodooGroup.position.set(HUT_X,FLOOR_Y+0.05757,HUT_Z+2.5);voodooGroup.rotation.set(0,0,0);}
 else{voodooGroup.position.set(0,0.05757,0);voodooGroup.rotation.set(0,0,0);}
 if(voodooLocalLight){voodooLocalLight.visible=true;voodooLocalLight.intensity=2.0}
@@ -325,14 +316,11 @@ function createHut(){
 hutGroup=new THREE.Group();hutGroup.position.set(HUT_X,0,HUT_Z);
 const wallRadius=4.7*1.5;
 const wallHeight=7.5*1.5*0.5;
-// ВОССТАНОВЛЕНО: белый пол поднят над травой (FLOOR_Y), принимает тени
 const floorMat=new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.95,metalness:0.0,side:THREE.DoubleSide});
 const floor=new THREE.Mesh(new THREE.CircleGeometry(wallRadius,48),floorMat);
 floor.rotation.x=-Math.PI/2;floor.position.y=FLOOR_Y;floor.receiveShadow=true;hutGroup.add(floor);
-// Стены принимают тени
 const wall=new THREE.Mesh(new THREE.CylinderGeometry(wallRadius,wallRadius,wallHeight,48,1,true),mt.hutWall);
 wall.position.y=wallHeight/2;wall.castShadow=true;wall.receiveShadow=true;hutGroup.add(wall);
-// Потолок принимает тени
 const ceilingMat=new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.9,metalness:0.0,side:THREE.DoubleSide});
 const ceiling=new THREE.Mesh(new THREE.CircleGeometry(wallRadius,48),ceilingMat);
 ceiling.rotation.x=Math.PI/2;ceiling.position.y=wallHeight;ceiling.castShadow=false;ceiling.receiveShadow=true;hutGroup.add(ceiling);
@@ -352,19 +340,16 @@ dR.quaternion.setFromUnitVectors(upV,dirV);dR.rotateX((Math.random()-0.5)*0.25);
 const len=1.5+Math.random()*1.5;dR.scale.set(1,len,1);dR.updateMatrix();roofTubes.setMatrixAt(i,dR.matrix);
 }
 roofTubes.instanceMatrix.needsUpdate=true;
-roofTubes.castShadow=false; // НЕ отбрасывают тени на потолок (убирает «вентилятор»)
+roofTubes.castShadow=false;
 hutGroup.add(roofTubes);
 const doorGroup=new THREE.Group();
 const doorShape=new THREE.Shape();doorShape.ellipse(0,0,1.2,2.2,0,Math.PI*2,false,0);
 const doorMesh=new THREE.Mesh(new THREE.ShapeGeometry(doorShape,24),mt.doorMat);
 doorMesh.castShadow=false;doorMesh.receiveShadow=false;doorGroup.add(doorMesh);
-// Внешние доски
 for(let i=-2;i<=2;i++){const x=i*0.45;const h=2*2.2*Math.sqrt(Math.max(0,1-(x/1.2)*(x/1.2)))*0.98;const plank=new THREE.Mesh(new THREE.BoxGeometry(0.42,h,0.05),mt.doorPlank);plank.position.set(x,0,0.05);plank.castShadow=false;doorGroup.add(plank);}
-// ВОССТАНОВЛЕНО: внутренние доски (дверь одинаковая внутри и снаружи)
 for(let i=-2;i<=2;i++){const x=i*0.45;const h=2*2.2*Math.sqrt(Math.max(0,1-(x/1.2)*(x/1.2)))*0.98;const plankIn=new THREE.Mesh(new THREE.BoxGeometry(0.42,h,0.05),mt.doorPlank);plankIn.position.set(x,0,-0.05);plankIn.castShadow=false;doorGroup.add(plankIn);}
 const frame=new THREE.Mesh(new THREE.TorusGeometry(1,0.08,8,32),mt.doorFrame);frame.scale.set(1.2,2.2,1);frame.position.z=0.09;frame.castShadow=false;doorGroup.add(frame);
 const handle=new THREE.Mesh(new THREE.SphereGeometry(0.09,10,10),mt.handleMat);handle.position.set(0.75,-0.1,0.14);handle.castShadow=false;doorGroup.add(handle);
-// ВОССТАНОВЛЕНО: внутренняя ручка
 const handleIn=new THREE.Mesh(new THREE.SphereGeometry(0.09,10,10),mt.handleMat);handleIn.position.set(0.75,-0.1,-0.14);handleIn.castShadow=false;doorGroup.add(handleIn);
 doorGroup.rotation.y=-Math.PI/2;doorGroup.position.set(-(wallRadius-0.12),2.2,0);hutGroup.add(doorGroup);
 const hearth=new THREE.Mesh(new THREE.CylinderGeometry(1.7,1.9,0.12,24),mt.hearthMat);hearth.position.set(0,FLOOR_Y+0.07,0);hearth.receiveShadow=true;hearth.castShadow=true;hutGroup.add(hearth);
@@ -426,7 +411,6 @@ sparkGeo.setAttribute('position',new THREE.BufferAttribute(sparkPos,3));
 sparkSystem=new THREE.Points(sparkGeo,mt.sparkMat);sparkSystem.position.set(0,FLOOR_Y+0.13,0);hutGroup.add(sparkSystem);
 for(let i=0;i<40;i++){const ember=new THREE.Mesh(new THREE.SphereGeometry(0.025+Math.random()*0.04,6),mt.emberMat);ember.position.set((Math.random()-0.5)*0.7,FLOOR_Y+0.03+Math.random()*0.03,(Math.random()-0.5)*0.7);ember.castShadow=false;hutGroup.add(ember);}
 const rug=new THREE.Mesh(new THREE.CircleGeometry(1.6,16),mt.rugMat);rug.rotation.x=-Math.PI/2;rug.position.set(1.0,FLOOR_Y+0.02,1.2);rug.receiveShadow=false;rug.castShadow=false;hutGroup.add(rug);
-// ВОССТАНОВЛЕНО: костёр отбрасывает тени (танцующие тени леди вуду на стенах/потолке/полу)
 fireLight=new THREE.PointLight(0xff6622,80.0,35);
 fireLight.position.set(0,FLOOR_Y+0.6,0);
 fireLight.castShadow=true;
@@ -463,7 +447,6 @@ scn.add(hutGroup);
 function resetSpark(i,sparkPos){
 const radius=(0.08+Math.random()*0.25)*2;
 const angle=Math.random()*Math.PI*2;
-// УВЕЛИЧЕНО: объем разлета искр в 2 раза
 sparkPos[i*3]=Math.cos(angle)*radius;
 sparkPos[i*3+1]=0.03+Math.random()*0.1;
 sparkPos[i*3+2]=Math.sin(angle)*radius;
@@ -615,12 +598,30 @@ for(let i=0;i<C.rc;i++)cR();
 }
 function cUTAt(x,z,trBase){
 const sv=(.4+Math.random()*1.6)*1.5;const th=(3+Math.random()*6)*sv*1.3;const tr=(trBase||th*(0.05+Math.random()*0.03))*0.7;
+const trunkMat=TRUNK_MATERIALS[(Math.random()*TRUNK_MATERIALS.length)|0];
 const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=Math.random()*Math.PI*2;
-const tg=new THREE.CylinderGeometry(tr*.4,tr,th,16);const t=new THREE.Mesh(tg,mt.tr);t.position.y=th/2;t.castShadow=true;t.receiveShadow=true;g.add(t);
+const tg=new THREE.CylinderGeometry(tr*.4,tr,th,16);const t=new THREE.Mesh(tg,trunkMat);t.position.y=th/2;t.castShadow=true;t.receiveShadow=true;g.add(t);
 const rc=4+Math.floor(Math.random()*5);
-for(let ri=0;ri<rc;ri++){const rl=(tr*3+Math.random()*tr)/8,rg=new THREE.CylinderGeometry(.008*sv,tr*.12,rl,8),rt=new THREE.Mesh(rg,mt.tr);rt.position.y=tr*.1;rt.rotation.z=Math.PI/2.5+Math.random()*.5;rt.rotation.y=(ri/rc)*Math.PI*2+Math.random();rt.position.x=Math.cos(rt.rotation.y)*tr*.05;rt.position.z=Math.sin(rt.rotation.y)*tr*.05;rt.castShadow=false;g.add(rt);}
+for(let ri=0;ri<rc;ri++){const rl=(tr*3+Math.random()*tr)/8,rg=new THREE.CylinderGeometry(.008*sv,tr*.12,rl,8),rt=new THREE.Mesh(rg,trunkMat);rt.position.y=tr*.1;rt.rotation.z=Math.PI/2.5+Math.random()*.5;rt.rotation.y=(ri/rc)*Math.PI*2+Math.random();rt.position.x=Math.cos(rt.rotation.y)*tr*.05;rt.position.z=Math.sin(rt.rotation.y)*tr*.05;rt.castShadow=false;g.add(rt);}
 const ly=4+Math.floor(Math.random()*4);const leafMeshes=[];
-for(let l=0;l<ly;l++){const sz=(1.5+Math.random()*1.5)*sv*(1-l*.12),yo=th+l*(.5*sv),cg=new THREE.IcosahedronGeometry(sz,6),cp=cg.attributes.position;for(let v=0;v<cp.count;v++){cp.setX(v,cp.getX(v)+(Math.random()-.5)*sz*.35);cp.setY(v,cp.getY(v)+(Math.random()-.5)*sz*.35);cp.setZ(v,cp.getZ(v)+(Math.random()-.5)*sz*.35);}cg.computeVertexNormals();const hue=.20+Math.random()*.2,sat=.40+Math.random()*.4,lit=.15+Math.random()*.5;const cn=new THREE.Mesh(cg,new THREE.MeshStandardMaterial({color:new THREE.Color().setHSL(hue,sat,lit),roughness:.8,flatShading:true}));cn.position.y=yo;cn.castShadow=true;cn.receiveShadow=true;g.add(cn);leafMeshes.push(cn);}
+const cy=th+sv*1.1,crR=sv*1.2;
+for(let l=0;l<ly;l++){
+const sz=(1.5+Math.random()*1.5)*sv*(1-l*.12);
+const cg=new THREE.IcosahedronGeometry(sz,6),cp=cg.attributes.position;
+for(let v=0;v<cp.count;v++){cp.setX(v,cp.getX(v)+(Math.random()-.5)*sz*.35);cp.setY(v,cp.getY(v)+(Math.random()-.5)*sz*.35);cp.setZ(v,cp.getZ(v)+(Math.random()-.5)*sz*.35);}
+cg.computeVertexNormals();
+const hue=.20+Math.random()*.2,sat=.40+Math.random()*.4,lit=.15+Math.random()*.5;
+const cn=new THREE.Mesh(cg,new THREE.MeshStandardMaterial({color:new THREE.Color().setHSL(hue,sat,lit),roughness:.8,flatShading:true}));
+if(l===0){cn.position.set(0,cy,0);}
+else{
+const k=(l-1)/Math.max(1,ly-1);
+const a=k*Math.PI*2*1.7+Math.random()*.4;
+const h=(k*2-1)*.85+(Math.random()-.5)*.2;
+const rr=crR*Math.sqrt(Math.max(0,1-h*h));
+cn.position.set(Math.cos(a)*rr,cy+h*crR,Math.sin(a)*rr);
+}
+cn.castShadow=true;cn.receiveShadow=true;g.add(cn);leafMeshes.push(cn);
+}
 g.frustumCulled=true;scn.add(g);return{group:g,trunkMesh:t,leafMeshes:leafMeshes,th:th,tr:tr};
 }
 function cR(){let attempts=0;while(attempts<50){const a=Math.random()*Math.PI*2,r=Math.random()*(C.ms/2-5),x=Math.cos(a)*r,z=Math.sin(a)*r;if(r<CLEARING_RADIUS){attempts++;continue;}
@@ -705,7 +706,7 @@ for(let i=corpses.length-1;i>=0;i--){if(currentDay>corpses[i].userData.spawnDay)
 const isNight=gt>=90/180;
 if(isNight&&en.length<3)sCr();
 if(!isNight&&en.length>0){en.forEach(e=>scn.remove(e.mesh));en=[]}
-buildCrocGrid();
+if((gridFrameCount++&1)===0)buildCrocGrid();
 const wallR=4.7*1.5;
 const doorOffset=wallR-0.12;
 const doorWX=HUT_X-doorOffset;
@@ -729,7 +730,6 @@ if(shakeIntensity>0.001){cam.position.x+=(Math.random()-0.5)*shakeIntensity;cam.
 if(sl.shadow){sl.shadow.camera.position.x=cam.position.x;sl.shadow.camera.position.z=cam.position.z;sl.shadow.camera.updateProjectionMatrix();}
 const dc=Math.sqrt(cam.position.x**2+cam.position.z**2);
 if(dc>C.ms/2-2){const a=Math.atan2(cam.position.z,cam.position.x);cam.position.x=Math.cos(a)*(C.ms/2-2);cam.position.z=Math.sin(a)*(C.ms/2-2)}
-// ВОССТАНОВЛЕНО: золото ×2 (GOLD_MULT)
 cr.forEach(c=>{if(!c.userData.c&&cam.position.distanceTo(c.position)<2){c.userData.c=true;c.visible=false;if(c.userData.t==='gold'){pl.g+=c.userData.ga*GOLD_MULT;sM('pickup-msg','+'+(c.userData.ga*GOLD_MULT)+' <span class="scl-gold">ЗОЛОТО</span>');sfxGold();saveGoldProgressThrottled()}else{pl.a+=c.userData.ga;sM('pickup-msg','+'+c.userData.ga+' <span class="scl-ammo">ПАТРОНЫ</span>');sfxAmmo()}uH()}});
 for(let i=colaBottles.length-1;i>=0;i--){const b=colaBottles[i];if(!b.userData.c&&cam.position.distanceTo(b.position)<2){b.userData.c=true;b.visible=false;const healAmount=b.userData.healAmount;const oldHp=pl.hp;pl.hp=Math.min(100,pl.hp+healAmount);const actualHeal=Math.floor(pl.hp-oldHp);sM('pickup-msg','+'+actualHeal+'% <span class="scl-heal">CROCO-COLA</span>');sfxDrink();vkTapticFeedback('medium');scn.remove(b);colaBottles.splice(i,1);uH();}}
 for(let i=0;i<bulletPool.length;i++){const b=bulletPool[i];if(!b.userData.active)continue;b.position.addScaledVector(b.userData.v,d);b.userData.l-=d;let hit=false;
