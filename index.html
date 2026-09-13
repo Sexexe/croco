@@ -697,40 +697,14 @@ const LEAF_COLORS = [
   0x7ab84a, 0x6ea855
 ];
 function buildMapleModel() {
-  const trunkParts = [];
+   const trunkParts = [];
   const leafParts = [];
   const trunkH = 9.0;
   const trunkR = 0.32;
   const trunkTopR = 0.22;
-  const trunkSegs = 5;
-  let prevR = trunkR;
-  for (let s = 0; s < trunkSegs; s++) {
-    const segH = trunkH / trunkSegs;
-    const t = s / trunkSegs;
-    const r = trunkR + (trunkTopR - trunkR) * t;
-    const g = new THREE.CylinderGeometry(r*0.95, prevR, segH, 8, 1);
-    g.translate(0, segH/2, 0);
-    const bend = Math.sin(t * Math.PI) * 0.15;
-    g.applyMatrix4(new THREE.Matrix4().makeRotationZ(bend * 0.15));
-    g.translate(bend * 0.3, segH * s, 0);
-    trunkParts.push(g);
-    prevR = r;
-  }
-  const branchCount = 6;
-  for (let i = 0; i < branchCount; i++) {
-    const angle = (i / branchCount) * Math.PI * 2 + 0.5;
-    const branchStartT = 0.7 + (i % 3) * 0.08;
-    const branchStartY = trunkH * branchStartT;
-    const branchLen = 2.0 + Math.random() * 0.6;
-    const branchR = 0.1;
-    const branch = new THREE.CylinderGeometry(branchR*0.4, branchR, branchLen, 5, 1);
-    branch.translate(0, branchLen/2, 0);
-    const tilt = 0.9 + Math.random() * 0.25;
-    branch.applyMatrix4(new THREE.Matrix4().makeRotationZ(tilt));
-    branch.applyMatrix4(new THREE.Matrix4().makeRotationY(angle));
-    branch.translate(0, branchStartY, 0);
-    trunkParts.push(branch);
-  }
+  const trunkGeo = new THREE.CylinderGeometry(trunkTopR, trunkR, trunkH, 8, 1);
+  trunkGeo.translate(0, trunkH/2, 0);
+  trunkParts.push(trunkGeo);
   // Большая крона (25 кластеров, ~2.6× от оригинала)
   const leafClusters = [
     [0,     trunkH + 0.9,  0,     3.1],
@@ -1222,14 +1196,7 @@ function buildOnePalmLocal(){
     topXAccum+=bendX*0.3;topZAccum+=bendZ*0.3;curY+=sh;tilt+=PALM.TRUNK_BEND;
   }
   const topY=curY;
-  for(let i=0;i<PALM.PETIOLES;i++){
-    const t=i/PALM.PETIOLES,angle=t*Math.PI*2*12,y=0.15+t*(H-0.5),r=baseR+(topR-baseR)*(y/H);
-    dummy.position.set(topXAccum+Math.cos(angle)*r,y,topZAccum+Math.sin(angle)*r);
-    dummy.rotation.set(0,angle+Math.PI/2,Math.PI/2);
-    dummy.scale.set(1,1,1);dummy.updateMatrix();
-    spikes.push({matrix:dummy.matrix.clone()});
-  }
-  for(let i=0;i<PALM.FIBERS;i++){
+   for(let i=0;i<PALM.FIBERS;i++){
     const a=(i/PALM.FIBERS)*Math.PI*2,r=topR*0.95;
     dummy.position.set(topXAccum+Math.cos(a)*r,topY-0.05,topZAccum+Math.sin(a)*r);
     dummy.rotation.set(0,a+Math.PI/2,Math.PI*0.72);
