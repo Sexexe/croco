@@ -1267,7 +1267,7 @@ function buildPalmWorld(){
   const rachisInst=new THREE.InstancedMesh(rachisGeo,PALM_MAT_RACHIS,totalRachis*12);
   rachisInst.castShadow=false;rachisInst.frustumCulled=true;
   const leafInsts=PALM_MAT_LEAVES.map(mat=>new THREE.InstancedMesh(PALM_GEO_LEAFLET,mat,Math.ceil(totalLeaflets/12)+12));
-  leafInsts.forEach(inst=>{inst.castShadow=true;inst.frustumCulled=true;inst.count=0;});
+  leafInsts.forEach(inst=>{inst.castShadow=true;inst.frustumCulled=false;inst.count=0;});
   const fiberGeo=new THREE.PlaneGeometry(0.14,PALM.FIBER_LEN,1,2);
   fiberGeo.translate(0,-PALM.FIBER_LEN/2,0);
   const fiberInst=PALM_MAT_FIBERS.map(mat=>new THREE.InstancedMesh(fiberGeo,mat,Math.ceil(totalFibers/4)+4));
