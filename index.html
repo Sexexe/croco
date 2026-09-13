@@ -806,7 +806,7 @@ function buildAllMaples() {
   while (placed.length < MAPLE_TREE_COUNT && attempts < 3000) {
     attempts++;
     const a = Math.random() * Math.PI * 2;
-    const r = 9 + Math.random() * 27;
+    const r = 9 + Math.random() * 22;
     const x = Math.cos(a) * r;
     const z = Math.sin(a) * r;
     if (Math.sqrt((x - HUT_X) ** 2 + (z - HUT_Z) ** 2) < 14) continue;
@@ -1263,7 +1263,7 @@ function generatePalmPositions(){
   for(let i=0;i<attempts&&positions.length<PALM_COUNT;i++){
     const a=Math.random()*Math.PI*2;
     const grassR=grassRadius(a);
-    const innerR=Math.max(0, grassR - 9.0 - Math.random() * 5.0);
+    const innerR=Math.max(0, grassR - 9.0 - Math.random() * 3.0);
     const outerR=grassR - 0.4 - Math.random() * 1.5;
     if(outerR<=innerR)continue;
     const r=innerR+Math.random()*(outerR-innerR);
