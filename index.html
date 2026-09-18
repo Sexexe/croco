@@ -170,13 +170,29 @@ const domCache=new Map();
 const getEl=(id)=>{if(!domCache.has(id))domCache.set(id,document.getElementById(id));return domCache.get(id);};
 const vkBridge=window.vkBridge;
 let vkBridgeReady=false,isVkEnvironment=false,isRewardAdReady=false;
-if(vkBridge){try{vkBridge.send('VKWebAppInit').then(()=>{vkBridgeReady=true;isVkEnvironment=true;}).catch(()=>{isVkEnvironment=false;});vkBridge.subscribe((event)=>{if(!event.detail||!event.detail.type)return;const{type}=event.detail;if(type==='VKWebAppViewHide')handleVisibilityChange(true);else if(type==='VKWebAppViewRestore')handleVisibilityChange(false);});}catch(e){}}
+if(vkBridge){try{vkBridge.send('VKWebAppInit').then(()=>{vkBridgeReady=true;isVkEnvironment=true;console.log('VK Bridge ready');}).catch((e)=>{isVkEnvironment=false;console.warn('VK Bridge init failed',e);});vkBridge.subscribe((event)=>{if(!event.detail||!event.detail.type)return;const{type}=event.detail;if(type==='VKWebAppViewHide')handleVisibilityChange(true);else if(type==='VKWebAppViewRestore')handleVisibilityChange(false);});}catch(e){}}
 document.addEventListener('visibilitychange',()=>handleVisibilityChange(document.hidden));
 let isMuted=false,wasPlayingBeforeHide=false;
-function handleVisibilityChange(isHidden){if(isHidden){wasPlayingBeforeHide=radioPlaying&&!isMuted;if(radioHeavyweight)radioHeavyweight.pause();if(radioDark)radioDark.pause();if(ax&&ax.state==='running')ax.suspend();}else{if(wasPlayingBeforeHide&&!isMuted){if(radioHeavyweight)radioHeavyweight.play().catch(()=>{});if(radioDark)radioDark.play().catch(()=>{});if(ax&&ax.state==='suspended')ax.resume();}}}
+function handleVisibilityChange(isHidden){if(isHidden){wasPlayingBeforeHide=radioPlaying&&!isMuted;if(radioHeavyweight)radioHeavyweight.pause();if(radioDark)radioDark.pause();if(ax&&ax.state==='running')ax.suspend();}else{if(!adInProgress&&wasPlayingBeforeHide&&!isMuted){if(radioHeavyweight)radioHeavyweight.play().catch(()=>{});if(radioDark)radioDark.play().catch(()=>{});if(ax&&ax.state==='suspended')ax.resume();}}}
 function checkRewardAdReadiness(){if(!isVkEnvironment||!vkBridge)return Promise.resolve(false);return vkBridge.send('VKWebAppCheckNativeAds',{ad_format:'reward'}).then((d)=>{isRewardAdReady=d.result;return d.result;}).catch(()=>{isRewardAdReady=false;return false;});}
 function showRewardAd(){return new Promise((resolve)=>{if(!isVkEnvironment||!vkBridge){resolve({success:false,reason:'no_bridge'});return;}checkRewardAdReadiness().then((ready)=>{if(!ready){resolve({success:false,reason:'not_ready'});return;}vkBridge.send('VKWebAppShowNativeAds',{ad_format:'reward'}).then((d)=>{resolve(d&&d.result?{success:true}:{success:false,reason:'no_result'});}).catch(()=>{resolve({success:false,reason:'error'});});});});}
-function showInterstitialAd(){if(!isVkEnvironment||!vkBridge)return;try{vkBridge.send('VKWebAppShowInterstitialAd').catch(()=>{});}catch(e){}}
+let adInProgress=false,lastInterstitialTime=0;
+const INTERSTITIAL_COOLDOWN=60000;
+function showInterstitialAd(){
+  if(!isVkEnvironment||!vkBridge)return;
+  if(adInProgress)return;
+  const now=performance.now();
+  if(now-lastInterstitialTime<INTERSTITIAL_COOLDOWN)return;
+  adInProgress=true;
+  vkBridge.send('VKWebAppCheckNativeAds',{ad_format:'interstitial'})
+    .then((data)=>{
+      if(!data||!data.result){adInProgress=false;return;}
+      return vkBridge.send('VKWebAppShowNativeAds',{ad_format:'interstitial'})
+        .then(()=>{lastInterstitialTime=performance.now();adInProgress=false;})
+        .catch(()=>{adInProgress=false;});
+    })
+    .catch(()=>{adInProgress=false;});
+}
 let lastTapticTime=0;
 function vkTapticFeedback(t='light'){const now=performance.now();const min=t==='light'?90:220;if(now-lastTapticTime<min)return null;lastTapticTime=now;return isVkEnvironment&&vkBridge?vkBridge.send('VKWebAppTapticFeedback',{type:t}).catch(()=>{}):null;}
 function saveGoldProgress(){const data=JSON.stringify({gold:pl.g,missionLevel:missionLevel});if(isVkEnvironment&&vkBridge)vkBridge.send('VKWebAppStorageSet',{key:'croc_hunter_gold',value:data}).catch(()=>{});try{localStorage.setItem('croc_hunter_gold',data)}catch(e){}}
