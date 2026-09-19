@@ -176,22 +176,53 @@ let isMuted=false,wasPlayingBeforeHide=false;
 function handleVisibilityChange(isHidden){if(isHidden){wasPlayingBeforeHide=radioPlaying&&!isMuted;if(radioHeavyweight)radioHeavyweight.pause();if(radioDark)radioDark.pause();if(ax&&ax.state==='running')ax.suspend();}else{if(!adInProgress&&wasPlayingBeforeHide&&!isMuted){if(radioHeavyweight)radioHeavyweight.play().catch(()=>{});if(radioDark)radioDark.play().catch(()=>{});if(ax&&ax.state==='suspended')ax.resume();}}}
 function checkRewardAdReadiness(){if(!isVkEnvironment||!vkBridge)return Promise.resolve(false);return vkBridge.send('VKWebAppCheckNativeAds',{ad_format:'reward'}).then((d)=>{isRewardAdReady=d.result;return d.result;}).catch(()=>{isRewardAdReady=false;return false;});}
 function showRewardAd(){return new Promise((resolve)=>{if(!isVkEnvironment||!vkBridge){resolve({success:false,reason:'no_bridge'});return;}checkRewardAdReadiness().then((ready)=>{if(!ready){resolve({success:false,reason:'not_ready'});return;}vkBridge.send('VKWebAppShowNativeAds',{ad_format:'reward'}).then((d)=>{resolve(d&&d.result?{success:true}:{success:false,reason:'no_result'});}).catch(()=>{resolve({success:false,reason:'error'});});});});}
-let adInProgress=false,lastInterstitialTime=0;
+let adInProgress=false,lastInterstitialTime=0,adTimeoutHandle=null;
 const INTERSTITIAL_COOLDOWN=60000;
+function restoreRadioAfterAd(){
+  if(isMuted)return;
+  if(!radioPlaying)return;
+  if(radioHeavyweight&&radioHeavyweight.paused){radioHeavyweight.play().catch(()=>{});}
+  if(radioDark&&radioDark.paused){radioDark.play().catch(()=>{});}
+  if(ax&&ax.state==='suspended'){ax.resume().catch(()=>{});}
+  if(cam)updateMusicVolumes();
+}
 function showInterstitialAd(){
   if(!isVkEnvironment||!vkBridge)return;
   if(adInProgress)return;
   const now=performance.now();
   if(now-lastInterstitialTime<INTERSTITIAL_COOLDOWN)return;
   adInProgress=true;
+  if(adTimeoutHandle)clearTimeout(adTimeoutHandle);
+  adTimeoutHandle=setTimeout(()=>{
+    adInProgress=false;
+    adTimeoutHandle=null;
+    restoreRadioAfterAd();
+  },15000);
   vkBridge.send('VKWebAppCheckNativeAds',{ad_format:'interstitial'})
     .then((data)=>{
-      if(!data||!data.result){adInProgress=false;return;}
+      if(!data||!data.result){
+        adInProgress=false;
+        if(adTimeoutHandle){clearTimeout(adTimeoutHandle);adTimeoutHandle=null;}
+        return;
+      }
       return vkBridge.send('VKWebAppShowNativeAds',{ad_format:'interstitial'})
-        .then(()=>{lastInterstitialTime=performance.now();adInProgress=false;})
-        .catch(()=>{adInProgress=false;});
+        .then(()=>{
+          lastInterstitialTime=performance.now();
+          adInProgress=false;
+          if(adTimeoutHandle){clearTimeout(adTimeoutHandle);adTimeoutHandle=null;}
+          restoreRadioAfterAd();
+        })
+        .catch(()=>{
+          adInProgress=false;
+          if(adTimeoutHandle){clearTimeout(adTimeoutHandle);adTimeoutHandle=null;}
+          restoreRadioAfterAd();
+        });
     })
-    .catch(()=>{adInProgress=false;});
+    .catch(()=>{
+      adInProgress=false;
+      if(adTimeoutHandle){clearTimeout(adTimeoutHandle);adTimeoutHandle=null;}
+      restoreRadioAfterAd();
+    });
 }
 let lastTapticTime=0;
 function vkTapticFeedback(t='light'){const now=performance.now();const min=t==='light'?90:220;if(now-lastTapticTime<min)return null;lastTapticTime=now;return isVkEnvironment&&vkBridge?vkBridge.send('VKWebAppTapticFeedback',{type:t}).catch(()=>{}):null;}
