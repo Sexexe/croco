@@ -139,7 +139,7 @@ let starsGroup=null,celestialPivot=null;
 let sunMesh=null,sunGlow=null,sunRays=null,moonMesh=null,moonMat=null;
 let birdsGroup=null,birdData=[];
 let waterMesh=null,waterUniforms=null;
-let grassMaterial=null,beachMaterial=null,wetSandMaterial=null;
+let grassMaterial=null,beachMaterial=null;
 let hutGroup=null,hutInteriorGroup=null;
 let fireLight=null,fireLight2=null,fireLight3=null,hutShadowLight=null;
 let flameMeshes=[],sparkSystem=null,sparkVel=[],sparkLife=[],hutTime=0;
@@ -200,10 +200,10 @@ let ax=null,_noiseBuffer=null,_masterOutput=null,_delayIn=null;
 let sndSea=null,sndFire=null,sndCrox=null;
 function initEnvSounds(){if(sndSea)return;sndSea=document.getElementById('snd-sea');sndFire=document.getElementById('snd-fire');sndCrox=document.getElementById('snd-crox');if(sndSea){sndSea.volume=0;sndSea.play().catch(()=>{});}if(sndFire){sndFire.volume=0;sndFire.play().catch(()=>{});}}
 function updateEnvSounds(){if(!cam)return;if(!sndSea||!sndFire)initEnvSounds();const px=cam.position.x,pz=cam.position.z;const dc=Math.sqrt(px*px+pz*pz);const landR=getLandRadiusAt(px,pz);const distToShore=Math.abs(dc-landR);const seaVol=Math.max(0,Math.min(1,(25-distToShore)/25));const seaTarget=isMuted?0:seaVol*0.5;if(sndSea)sndSea.volume+=(seaTarget-sndSea.volume)*0.05;const distToHut=Math.sqrt((px-HUT_X)**2+(pz-HUT_Z)**2);const fireVol=Math.max(0,Math.min(1,(14-distToHut)/14));const fireTarget=isMuted?0:fireVol*0.45;if(sndFire)sndFire.volume+=(fireTarget-sndFire.volume)*0.05;}
-/* ===== ЗВУК СМЕРТИ КРОКОДИЛА: +50% громкости (1.4 -> 2.1) ===== */
+/* ===== ЗВУК СМЕРТИ КРОКОДИЛА: crox.mp3, +50% громкости ===== */
 function sfxCroxWithDelay(){
   if(isMuted)return;
-  if(!sndCrox){sndCrox=document.getElementById('snd-crox');if(!sndCrox)return;}
+  if(!sndCrox){sndCrox=document.getElementById('snd-crox');if(!sndCrox){sndCrox=document.createElement('audio');sndCrox.id='snd-crox';sndCrox.src='crox.mp3';sndCrox.preload='auto';document.body.appendChild(sndCrox);}}
   try{const src=sndCrox.cloneNode(true);src.volume=2.1;const p=src.play();if(p&&p.catch)p.catch(()=>{});}catch(e){}
 }
 function initAudio(){if(ax)return;try{const AC=window.AudioContext||window.webkitAudioContext;ax=new AC();const bufSize=ax.sampleRate*2;_noiseBuffer=ax.createBuffer(1,bufSize,ax.sampleRate);const data=_noiseBuffer.getChannelData(0);for(let i=0;i<bufSize;i++)data[i]=Math.random()*2-1;const comp=ax.createDynamicsCompressor();comp.threshold.value=-15;comp.knee.value=20;comp.ratio.value=12;comp.attack.value=0.001;comp.release.value=0.1;const saturator=ax.createWaveShaper();const curve=new Float32Array(256);for(let i=0;i<256;i++){const x=(i/128)-1;curve[i]=Math.tanh(x*2);}saturator.curve=curve;const limiter=ax.createDynamicsCompressor();limiter.threshold.value=-3;limiter.knee.value=0;limiter.ratio.value=20;limiter.attack.value=0.001;limiter.release.value=0.01;comp.connect(saturator);saturator.connect(limiter);limiter.connect(ax.destination);_masterOutput=comp;_delayIn=ax.createGain();_delayIn.gain.value=1.0;const d1=ax.createDelay(1.0);d1.delayTime.value=0.27;const g1=ax.createGain();g1.gain.value=0.4;const d2=ax.createDelay(1.0);d2.delayTime.value=0.27;const g2=ax.createGain();g2.gain.value=0.4;_delayIn.connect(d1);d1.connect(g1);g1.connect(_masterOutput);g1.connect(d2);d2.connect(g2);g2.connect(_masterOutput);if(ax.state==='suspended'){const resume=()=>{ax.resume();document.removeEventListener('touchstart',resume);document.removeEventListener('click',resume);document.removeEventListener('mousedown',resume)};document.addEventListener('touchstart',resume);document.addEventListener('click',resume);document.addEventListener('mousedown',resume);}}catch(e){}}
@@ -365,7 +365,13 @@ const _beachNightColor=new THREE.Color(0x2a3448);
 function noise2D(x,z){return Math.sin(x*0.31+1.3)*0.5+Math.sin(z*0.27+2.1)*0.4+Math.sin(x*0.52+z*0.41+0.7)*0.3+Math.sin(x*1.13-z*0.87+1.9)*0.15;}
 function shoreRadius(theta){return 45.5+Math.sin(theta*2.0)*1.6+Math.sin(theta*3.0+1.7)*1.1+Math.sin(theta*5.0+0.4)*0.7+Math.sin(theta*7.0+2.3)*0.4;}
 function grassRadius(theta){return shoreRadius(theta)-(6.2+Math.sin(theta*3.0+0.7)*0.7+Math.sin(theta*5.0+2.1)*0.4+Math.sin(theta*7.0+1.1)*0.25);}
-function getLandRadiusAt(x,z){return shoreRadius(Math.atan2(z,x));}
+/* ШИРИНА ПЛЯЖА УВЕЛИЧЕНА В 3 РАЗА: внешняя граница пляжа уходит в море */
+function beachOuterRadius(theta){
+  const g = grassRadius(theta);
+  const s = shoreRadius(theta);
+  return s + (s - g) * 3.0; // было s, стало s + 3*(s-g)
+}
+function getLandRadiusAt(x,z){return beachOuterRadius(Math.atan2(z,x));}
 function grassHeightAt(x,z){const dist=Math.sqrt(x*x+z*z);const outer=grassRadius(Math.atan2(z,x));const edgeFade=Math.max(0,Math.min(1,(outer-dist)/8));return noise2D(x,z)*0.35*edgeFade;}
 function getGrassRadiusAt(x,z){return grassRadius(Math.atan2(z,x));}
 function reliefMultiplier(dist, inner, outer){if(outer<=inner) return 1.0;const t = Math.max(0, Math.min(1, (dist - inner) / (outer - inner)));return 1.0 + 0.3 * smootherstep(t);}
@@ -420,22 +426,13 @@ scn.add(grassMesh);
 grassMeshes.push(grassMesh);
 beachMaterial=new THREE.MeshStandardMaterial({color:0xf4e4bc,roughness:1.0,metalness:0.0,side:THREE.DoubleSide});
 const beachOverlap=0.124;
-const beachGeo=createRadialGeometry(theta=>grassRadius(theta)-beachOverlap,shoreRadius,0.02,ISLAND_SEGMENTS,isMob?8:10,true);
+const beachGeo=createRadialGeometry(theta=>grassRadius(theta)-beachOverlap,beachOuterRadius,0.02,ISLAND_SEGMENTS,isMob?8:10,true);
 const beachMesh=new THREE.Mesh(beachGeo,beachMaterial);
 beachMesh.receiveShadow=true;
 beachMesh.castShadow=false;
 beachMesh.matrixAutoUpdate=false;
 beachMesh.updateMatrix();
 scn.add(beachMesh);
-wetSandMaterial=new THREE.MeshStandardMaterial({color:0xd8c8a0,roughness:0.65,metalness:0.05,transparent:true,opacity:0.55,side:THREE.DoubleSide,depthWrite:false});
-const wetGeo=createRadialGeometry(theta=>shoreRadius(theta)-1.35,theta=>shoreRadius(theta)+0.35,0.015,ISLAND_SEGMENTS,2,false);
-const wetMesh=new THREE.Mesh(wetGeo,wetSandMaterial);
-wetMesh.receiveShadow=false;
-wetMesh.castShadow=false;
-wetMesh.renderOrder=2;
-wetMesh.matrixAutoUpdate=false;
-wetMesh.updateMatrix();
-scn.add(wetMesh);
 }
 function createWaterNormalMap(){const size=isMob?128:256;const canvas=document.createElement('canvas');canvas.width=size;canvas.height=size;const ctx=canvas.getContext('2d');const img=ctx.createImageData(size,size);function h(u){return Math.sin(u*3.0)*0.45+Math.sin(u*5.0+1.7)*0.30+Math.sin(u*8.0+0.4)*0.15+Math.sin(u*13.0+2.3)*0.10;}const step=(Math.PI*2/size)*1.75;for(let y=0;y<size;y++){for(let x=0;x<size;x++){const u=(x/size)*Math.PI*2;const dx=h(u+step)-h(u-step);let nx=-dx,ny=0,nz=0.85;const len=Math.sqrt(nx*nx+ny*ny+nz*nz)||1;nx/=len;ny/=len;nz/=len;const idx=(y*size+x)*4;img.data[idx+0]=Math.floor((nx*0.5+0.5)*255);img.data[idx+1]=Math.floor((ny*0.5+0.5)*255);img.data[idx+2]=Math.floor((nz*0.5+0.5)*255);img.data[idx+3]=255;}}ctx.putImageData(img,0,0);const tex=new THREE.CanvasTexture(canvas);tex.wrapS=THREE.RepeatWrapping;tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(1,1);return tex;}
 function createWater(){const waterNormalMap=createWaterNormalMap();const waterGeo=new THREE.PlaneGeometry(C.ws,C.ws,isMob?48:64,isMob?48:64);waterGeo.rotateX(-Math.PI/2);const waterShader=new THREE.ShaderMaterial({uniforms:{uTime:{value:0},uNormalMap:{value:waterNormalMap},uCamPos:{value:new THREE.Vector3()},uSunDir:{value:new THREE.Vector3(0,1,0)},uSunColor:{value:new THREE.Color(1,1,1)},uSunIntensity:{value:1.0},uMoonDir:{value:new THREE.Vector3(0,-1,0)},uMoonColor:{value:new THREE.Color(0.75,0.83,1.0)},uMoonIntensity:{value:0.0},uSkyTop:{value:new THREE.Color(0x00aaff)},uSkyBottom:{value:new THREE.Color(0xffffff)},uDeepColor:{value:new THREE.Color(0x02233e)},uShallowColor:{value:new THREE.Color(0x0a6a8e)},uShoreColor:{value:new THREE.Color(0x3ec3cf)},uFoamColor:{value:new THREE.Color(0xffffff)},uFogColor:{value:new THREE.Color(0x0a1525)},uFogNear:{value:15.0},uFogFar:{value:60.0},uNormalScale:{value:isMob?0.05:0.08},uOpacity:{value:isMob?0.82:0.90}},vertexShader:`
@@ -443,12 +440,15 @@ uniform float uTime;
 varying vec3 vWorldPosition;
 varying float vWave;
 varying vec2 vSlopeDir;
-float shoreRadiusV(float a){return 45.5+sin(a*2.0)*1.6+sin(a*3.0+1.7)*1.1+sin(a*5.0+0.4)*0.7+sin(a*7.0+2.3)*0.4;}
+float beachOuterRadiusV(float a){return 45.5+sin(a*2.0)*1.6+sin(a*3.0+1.7)*1.1+sin(a*5.0+0.4)*0.7+sin(a*7.0+2.3)*0.4
++((45.5+sin(a*2.0)*1.6+sin(a*3.0+1.7)*1.1+sin(a*5.0+0.4)*0.7+sin(a*7.0+2.3)*0.4)
+-(45.5+sin(a*2.0)*1.6+sin(a*3.0+1.7)*1.1+sin(a*5.0+0.4)*0.7+sin(a*7.0+2.3)*0.4
+-(6.2+sin(a*3.0+0.7)*0.7+sin(a*5.0+2.1)*0.4+sin(a*7.0+1.1)*0.25)))*3.0;}
 void main(){
 vec3 pos=position;
 float dist=length(pos.xz);
 float ang=atan(pos.z,pos.x);
-float shore=shoreRadiusV(ang);
+float shore=beachOuterRadiusV(ang);
 float depth=dist-shore;
 float outsideFactor=smoothstep(shore-2.0,shore+3.0,dist);
 float w=0.0;
@@ -480,12 +480,15 @@ uniform float uFogNear,uFogFar;
 varying vec3 vWorldPosition;
 varying float vWave;
 varying vec2 vSlopeDir;
-float shoreRadiusF(float a){return 45.5+sin(a*2.0)*1.6+sin(a*3.0+1.7)*1.1+sin(a*5.0+0.4)*0.7+sin(a*7.0+2.3)*0.4;}
+float beachOuterRadiusF(float a){return 45.5+sin(a*2.0)*1.6+sin(a*3.0+1.7)*1.1+sin(a*5.0+0.4)*0.7+sin(a*7.0+2.3)*0.4
++((45.5+sin(a*2.0)*1.6+sin(a*3.0+1.7)*1.1+sin(a*5.0+0.4)*0.7+sin(a*7.0+2.3)*0.4)
+-(45.5+sin(a*2.0)*1.6+sin(a*3.0+1.7)*1.1+sin(a*5.0+0.4)*0.7+sin(a*7.0+2.3)*0.4
+-(6.2+sin(a*3.0+0.7)*0.7+sin(a*5.0+2.1)*0.4+sin(a*7.0+1.1)*0.25)))*3.0;}
 void main(){
 vec2 xz=vWorldPosition.xz;
 float dist=length(xz);
 float ang=atan(xz.y,xz.x);
-float shore=shoreRadiusF(ang);
+float shore=beachOuterRadiusF(ang);
 float depth=dist-shore;
 if(depth<-1.5)discard;
 float shoreFactor=smoothstep(-1.5,3.0,depth);
@@ -540,7 +543,6 @@ if(grassMaterial){
   if(hex !== _lastGrassHex){ grassMaterial.color.copy(_grassTmpC); _lastGrassHex = hex; }
 }
 if(beachMaterial){beachMaterial.color.copy(_beachDayColor);beachMaterial.color.lerp(_beachNightColor,THREE.MathUtils.clamp(skyOut.stars*0.55,0,1));}
-if(wetSandMaterial){wetSandMaterial.opacity=0.35+0.25*(1.0-skyOut.stars);}
 if(waterMesh&&waterUniforms&&cam){
   _waterUniformTimer += (d || 0.016);
   waterUniforms.uTime.value=performance.now()*0.001;
@@ -747,8 +749,10 @@ function buildAllMaples() {
 /* ============ КАМНИ ============ */
 let rockInst = null;
 let rockShoreInst = null;
-const ROCK_COUNT = 45;
+let rockUnderwaterInst = null;
+const ROCK_COUNT = 28;
 const ROCK_SHORE_COUNT = 8;
+const ROCK_UNDERWATER_COUNT = 14;
 const ROCK_COLORS = [0xd8d8d8,0xc8c8c8,0xb8b8b8,0xa8a8a8];
 function buildAllRocks() {
   const baseGeo = new THREE.DodecahedronGeometry(1, 0);
@@ -780,15 +784,13 @@ function buildAllRocks() {
     let r;
     let isBeachRock = false;
     if (isBigRock) {
-      r = grassR + 0.3 + Math.random() * (shoreR - grassR + 2.5);
+      // крупные — у самой воды
+      r = grassR + 1.0 + Math.random() * (shoreR - grassR + 3.5);
       isBeachRock = true;
     } else {
-      if (Math.random() < 0.6) {
-        r = CLEARING_RADIUS + Math.random() * (grassR - CLEARING_RADIUS - 1);
-      } else {
-        r = grassR - 0.5 + Math.random() * (shoreR - grassR + 2.5);
-        isBeachRock = true;
-      }
+      // все мелкие/средние — у кромки пляжа, ближе к воде
+      r = grassR - 0.3 + Math.random() * (shoreR - grassR + 3.0);
+      isBeachRock = true;
     }
     const x = Math.cos(a) * r;
     const z = Math.sin(a) * r;
@@ -810,15 +812,16 @@ function buildAllRocks() {
     p.size = s;
   }
   placed.sort((a, b) => a.size - b.size);
-  const toRemove = 15;
+  const toRemove = 10;
   const kept = placed.slice(toRemove);
   const shoreRocks = [];
   const maxSize = kept.length ? kept[kept.length-1].size : 1.0;
   const hugeSize = maxSize * 3.0;
   for (let i = 0; i < ROCK_SHORE_COUNT; i++) {
     const a = Math.random() * Math.PI * 2;
-    const shoreR = shoreRadius(a);
-    const r = shoreR + 2 + Math.random() * 6;
+    const edge = beachOuterRadius(a);
+    // валуны прямо у кромки воды и частично в воде
+    const r = edge - 1 + Math.random() * 5;
     const x = Math.cos(a) * r;
     const z = Math.sin(a) * r;
     shoreRocks.push({ x, z, size: hugeSize * (0.85 + Math.random() * 0.3) });
@@ -855,7 +858,7 @@ function buildAllRocks() {
   rockShoreInst.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   for (let i = 0; i < shoreRocks.length; i++) {
     const p = shoreRocks[i];
-    dummy.position.set(p.x, -0.5, p.z);
+    dummy.position.set(p.x, -0.4, p.z);
     dummy.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI * 2, Math.random() * Math.PI);
     dummy.scale.set(
       p.size * (0.9 + Math.random() * 0.2),
@@ -874,6 +877,49 @@ function buildAllRocks() {
   rockShoreInst.instanceMatrix.needsUpdate = true;
   if (rockShoreInst.instanceColor) rockShoreInst.instanceColor.needsUpdate = true;
   scn.add(rockShoreInst);
+
+  /* ===== ПОДВОДНЫЕ КАМНИ В МОРЕ ===== */
+  rockUnderwaterInst = new THREE.InstancedMesh(baseGeo, rockMat, ROCK_UNDERWATER_COUNT);
+  rockUnderwaterInst.castShadow = false;
+  rockUnderwaterInst.receiveShadow = true;
+  rockUnderwaterInst.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  for (let i = 0; i < ROCK_UNDERWATER_COUNT; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const edge = beachOuterRadius(a);
+    const r = edge + 2 + Math.random() * 13; // 2..15 м от кромки пляжа в море
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    const s = (0.6 + Math.random() * 1.6) * 3.0;
+    // Верх камня торчит из воды: y от 0.25 до 1.4
+    const yPos = -0.6 + Math.random() * 1.0;
+    dummy.position.set(x, yPos, z);
+    dummy.rotation.set(
+      Math.random() * Math.PI,
+      Math.random() * Math.PI * 2,
+      Math.random() * Math.PI
+    );
+    dummy.scale.set(
+      s * (0.9 + Math.random() * 0.3),
+      s * (0.7 + Math.random() * 0.6),
+      s * (0.9 + Math.random() * 0.3)
+    );
+    dummy.updateMatrix();
+    rockUnderwaterInst.setMatrixAt(i, dummy.matrix);
+    // Чуть зеленее/темнее — обрастание
+    const cIdx = Math.floor(Math.random() * ROCK_COLORS.length);
+    colorTmp.setHex(ROCK_COLORS[cIdx]);
+    const hsl = { h: 0, s: 0, l: 0 };
+    colorTmp.getHSL(hsl);
+    colorTmp.setHSL(
+      0.28 + (Math.random() - 0.5) * 0.08,
+      0.15 + Math.random() * 0.2,
+      Math.max(0.35, Math.min(0.7, hsl.l - 0.15 + (Math.random() - 0.5) * 0.1))
+    );
+    rockUnderwaterInst.setColorAt(i, colorTmp);
+  }
+  rockUnderwaterInst.instanceMatrix.needsUpdate = true;
+  if (rockUnderwaterInst.instanceColor) rockUnderwaterInst.instanceColor.needsUpdate = true;
+  scn.add(rockUnderwaterInst);
 }
 /* ============ ПАЛЬМЫ ============ */
 const PALM_COUNT = 40;
@@ -1296,16 +1342,16 @@ const el=new THREE.Mesh(new THREE.SphereGeometry(0.06,8,8),eyeMat);el.position.s
 const lg=[];[[-0.35,0.2,0.7],[0.35,0.2,0.7],[-0.35,0.2,-0.7],[0.35,0.2,-0.7]].forEach(p=>{const legG=new THREE.Group();legG.position.set(...p);const l=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.07,0.35,6),customSkin);l.castShadow=true;legG.add(l);for(let f=-1;f<=1;f++){const toe=new THREE.Mesh(new THREE.ConeGeometry(0.02,0.08,4),customSkin);toe.position.set(f*0.03,-0.18,0.05);toe.rotation.x=-0.5;toe.castShadow=false;legG.add(toe);}lg.push(legG);g.add(legG);});
 const tg=new THREE.Group();tg.position.set(0,0.4,-1.2);for(let i=0;i<7;i++){const seg=new THREE.Mesh(roundedBoxGeo(0.5-i*0.06,0.35-i*0.04,0.35,2,0.25),customSkin);seg.position.z=-i*0.3;seg.castShadow=true;tg.add(seg);if(i<5){const tS=new THREE.Mesh(new THREE.ConeGeometry(0.03,0.1,4),customSkin);tS.position.set(0,0.2,-i*0.3);tS.castShadow=false;tg.add(tS);}}g.add(tg);
 g.frustumCulled=true;g.userData={hp:1,sp:1.5*crocodileSpeedMultiplier,tp:'crocodile',rl:'croc',wp:Math.random()*Math.PI,lg,t:tg,eyeMat:eyeMat,eyePhase:Math.random()*Math.PI*2,eyeSpeed:1.5+Math.random()*2.5};return g;}
-function sCr(){const active=en.length;const toSpawn=Math.min(3-active,C.crc-killed);for(let i=0;i<toSpawn;i++){const m=cCr();const a=Math.random()*Math.PI*2;const landR=shoreRadius(a);const r=landR+3+Math.random()*10;m.position.set(Math.cos(a)*r,-0.2,Math.sin(a)*r);scn.add(m);en.push({mesh:m,...m.userData});}}
+function sCr(){const active=en.length;const toSpawn=Math.min(3-active,C.crc-killed);for(let i=0;i<toSpawn;i++){const m=cCr();const a=Math.random()*Math.PI*2;const landR=beachOuterRadius(a);const r=landR+3+Math.random()*10;m.position.set(Math.cos(a)*r,-0.2,Math.sin(a)*r);scn.add(m);en.push({mesh:m,...m.userData});}}
 function createFlies(pos){const flyCount=isMob?4:8;const positions=new Float32Array(flyCount*3);const flyData=[];for(let i=0;i<flyCount;i++){const angle=Math.random()*Math.PI*2;const radius=0.2+Math.random()*0.6;const yOff=0.4+Math.random()*0.5;positions[i*3]=Math.cos(angle)*radius;positions[i*3+1]=yOff;positions[i*3+2]=Math.sin(angle)*radius;flyData.push({angle,radius,yOff,speed:3+Math.random()*4,ySpeed:2+Math.random()*3});}const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(positions,3));const pts=new THREE.Points(geo,new THREE.PointsMaterial({color:0x000000,size:0.015,sizeAttenuation:true}));pts.position.copy(pos);pts.position.y=0.2;pts.userData={flies:flyData};scn.add(pts);db.push(pts);return pts;}
 function updateFlies(dt){const px=cam.position.x,pz=cam.position.z;db.forEach(obj=>{if(obj.isPoints&&obj.userData.flies){const dx=obj.position.x-px,dz=obj.position.z-pz;const near=dx*dx+dz*dz<900;if(obj.visible!==near)obj.visible=near;if(!near)return;const pos=obj.geometry.attributes.position;for(let i=0;i<obj.userData.flies.length;i++){const f=obj.userData.flies[i];f.angle+=f.speed*dt;pos.setXYZ(i,Math.cos(f.angle)*f.radius,f.yOff+Math.sin(performance.now()*0.007*f.ySpeed)*0.12,Math.sin(f.angle)*f.radius);}pos.needsUpdate=true;}});}
 function killCroc(j){const e=en[j];if(!e)return;cP(e.mesh.position,0x1a3a1a,6);sfxCroxWithDelay();const ch=getEl('crosshair');if(ch){ch.style.borderColor='#ff3333';ch.style.boxShadow='0 0 8px rgba(255,50,50,0.8)';setTimeout(()=>{ch.style.borderColor='#ffffff';ch.style.boxShadow='0 0 4px rgba(0,0,0,.6)';},150);}const bd=e.mesh.clone();bd.rotation.set(Math.PI,0,0);bd.position.y=0.35;bd.userData.spawnDay=currentDay;scn.add(bd);const flies=createFlies(bd.position);bd.userData.flies=flies;corpses.push(bd);scn.remove(e.mesh);en.splice(j,1);killed++;const killDisplay=getEl('kill-display');if(killDisplay)killDisplay.innerText=killed+'/'+totalKills;vkTapticFeedback('medium');if(killed>=totalKills){pl.d=true;showMissionSuccess();}}
 function createColaLabelTexture(){if(colaLabelTexture)return colaLabelTexture;const canvas=document.createElement('canvas');canvas.width=512;canvas.height=256;const ctx=canvas.getContext('2d');const grad=ctx.createLinearGradient(0,0,0,256);grad.addColorStop(0,'#d10000');grad.addColorStop(0.5,'#b30000');grad.addColorStop(1,'#8a0000');ctx.fillStyle=grad;ctx.fillRect(0,0,512,256);ctx.fillStyle='#ffffff';ctx.beginPath();ctx.moveTo(0,120);ctx.bezierCurveTo(128,100,384,140,512,120);ctx.lineTo(512,140);ctx.bezierCurveTo(384,160,128,120,0,140);ctx.closePath();ctx.fill();ctx.font='bold 72px Impact, Arial Black';ctx.textAlign='center';ctx.textBaseline='middle';ctx.strokeStyle='#000000';ctx.lineWidth=3;ctx.strokeText('CROCO',256,90);ctx.fillText('CROCO',256,90);ctx.font='bold 48px Impact, Arial Black';ctx.strokeText('COLA',256,180);ctx.fillText('COLA',256,180);ctx.fillStyle='#00aa00';ctx.beginPath();ctx.ellipse(256,220,40,12,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#004400';ctx.lineWidth=2;ctx.stroke();ctx.fillStyle='#ffff00';ctx.beginPath();ctx.arc(275,216,3,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ffffff';for(let i=0;i<5;i++){ctx.beginPath();ctx.moveTo(230+i*10,224);ctx.lineTo(235+i*10,228);ctx.lineTo(240+i*10,224);ctx.closePath();ctx.fill();}const texture=new THREE.CanvasTexture(canvas);texture.wrapS=THREE.RepeatWrapping;texture.wrapT=THREE.ClampToEdgeWrapping;colaLabelTexture=texture;return texture;}
 function createCrocoCola(){const group=new THREE.Group();const bottlePoints=[new THREE.Vector2(0.00,0.00),new THREE.Vector2(0.15,0.00),new THREE.Vector2(0.17,0.05),new THREE.Vector2(0.18,0.30),new THREE.Vector2(0.18,0.80),new THREE.Vector2(0.16,0.90),new THREE.Vector2(0.10,0.95),new THREE.Vector2(0.07,1.00),new THREE.Vector2(0.07,1.15),new THREE.Vector2(0.08,1.18),new THREE.Vector2(0.07,1.20)];const bottleGeo=new THREE.LatheGeometry(bottlePoints,24);const glassMat=new THREE.MeshStandardMaterial({color:0x22aa44,metalness:0.6,roughness:0.1,transparent:true,opacity:0.6,side:THREE.DoubleSide});const bottle=new THREE.Mesh(bottleGeo,glassMat);bottle.castShadow=true;bottle.receiveShadow=true;group.add(bottle);const liquidPoints=[new THREE.Vector2(0.00,0.02),new THREE.Vector2(0.14,0.02),new THREE.Vector2(0.15,0.06),new THREE.Vector2(0.16,0.25),new THREE.Vector2(0.16,0.70),new THREE.Vector2(0.14,0.78),new THREE.Vector2(0.00,0.78)];const liquidGeo=new THREE.LatheGeometry(liquidPoints,24);const liquidMat=new THREE.MeshStandardMaterial({color:0x0a4020,metalness:0.3,roughness:0.3,emissive:0x003311,emissiveIntensity:0.3});const liquid=new THREE.Mesh(liquidGeo,liquidMat);liquid.position.y=0;group.add(liquid);const labelGeo=new THREE.CylinderGeometry(0.181,0.181,0.50,32,1,true);const labelMat=new THREE.MeshStandardMaterial({map:createColaLabelTexture(),roughness:0.6,metalness:0.0,side:THREE.DoubleSide});const label=new THREE.Mesh(labelGeo,labelMat);label.position.y=0.50;group.add(label);const capGeo=new THREE.CylinderGeometry(0.085,0.085,0.08,16);const capMat=new THREE.MeshStandardMaterial({color:0xcc0000,metalness:0.7,roughness:0.3});const cap=new THREE.Mesh(capGeo,capMat);cap.position.y=1.24;cap.castShadow=true;group.add(cap);const capTopGeo=new THREE.CylinderGeometry(0.075,0.085,0.02,16);const capTop=new THREE.Mesh(capTopGeo,capMat);capTop.position.y=1.29;group.add(capTop);for(let i=0;i<16;i++){const stripeGeo=new THREE.BoxGeometry(0.005,0.08,0.02);const stripeMat=new THREE.MeshStandardMaterial({color:0x660000});const stripe=new THREE.Mesh(stripeGeo,stripeMat);const angle=(i/16)*Math.PI*2;stripe.position.set(Math.cos(angle)*0.085,1.24,Math.sin(angle)*0.085);stripe.lookAt(0,1.24,0);group.add(stripe);}group.scale.set(1.3,1.3,1.3);group.userData={t:'cola',c:false,healAmount:10};return group;}
-function spawnCrocoCola(){const a=Math.random()*Math.PI*2;const landR=shoreRadius(a);const minR=CLEARING_RADIUS+3;const maxR=Math.max(minR+1,landR-5);if(maxR<=minR)return;const r=minR+Math.random()*(maxR-minR);const x=Math.cos(a)*r,z=Math.sin(a)*r;const bottle=createCrocoCola();bottle.position.set(x,0,z);bottle.rotation.y=Math.random()*Math.PI*2;scn.add(bottle);colaBottles.push(bottle);colaSpawnedToday=true;}
+function spawnCrocoCola(){const a=Math.random()*Math.PI*2;const landR=grassRadius(a);const minR=CLEARING_RADIUS+3;const maxR=Math.max(minR+1,landR-5);if(maxR<=minR)return;const r=minR+Math.random()*(maxR-minR);const x=Math.cos(a)*r,z=Math.sin(a)*r;const bottle=createCrocoCola();bottle.position.set(x,0,z);bottle.rotation.y=Math.random()*Math.PI*2;scn.add(bottle);colaBottles.push(bottle);colaSpawnedToday=true;}
 function createAKMag(){const group=new THREE.Group();const magMat=new THREE.MeshStandardMaterial({color:0x3a3a3a,roughness:0.4,metalness:0.8});const curve=new THREE.CatmullRomCurve3([new THREE.Vector3(0,0.30,0),new THREE.Vector3(0.015,0.225,0.02),new THREE.Vector3(0.05,0.15,0.05),new THREE.Vector3(0.10,0.075,0.085),new THREE.Vector3(0.16,0.0,0.11)]);const segs=10;const upV=new THREE.Vector3(0,1,0);const dirV=new THREE.Vector3();const segGeo=new THREE.BoxGeometry(0.10,1,0.055);for(let i=0;i<segs;i++){const p0=curve.getPointAt(i/segs),p1=curve.getPointAt((i+1)/segs);const mid=p0.clone().add(p1).multiplyScalar(0.5);const len=p0.distanceTo(p1)*1.08;const seg=new THREE.Mesh(segGeo,magMat);seg.scale.set(1,len,1);seg.position.copy(mid);dirV.subVectors(p1,p0).normalize();seg.quaternion.setFromUnitVectors(upV,dirV);seg.castShadow=true;seg.receiveShadow=true;group.add(seg);}const top=new THREE.Mesh(new THREE.BoxGeometry(0.11,0.035,0.065),magMat);top.position.copy(curve.getPointAt(0));top.position.y+=0.015;top.castShadow=true;top.receiveShadow=true;group.add(top);const boot=new THREE.Mesh(new THREE.BoxGeometry(0.115,0.03,0.07),magMat);boot.position.copy(curve.getPointAt(1));boot.position.y+=0.012;dirV.copy(curve.getTangentAt(1)).normalize();boot.quaternion.setFromUnitVectors(upV,dirV);boot.castShadow=true;boot.receiveShadow=true;group.add(boot);group.scale.set(1.5,1.5,1.5);return group;}
-function spawnMorningLoot(){for(let i=0;i<2;i++){const a=Math.random()*Math.PI*2;const landR=shoreRadius(a);const minR=CLEARING_RADIUS+2;const maxR=Math.max(minR+1,landR-4);if(maxR<=minR)continue;const r=minR+Math.random()*(maxR-minR);const x=Math.cos(a)*r,z=Math.sin(a)*r;const ct=createAKMag();ct.position.set(x,0.05,z);ct.rotation.y=Math.random()*Math.PI*2;ct.userData={t:'ammo',ga:15,c:false};scn.add(ct);cr.push(ct);}}
-function spawnNightCoins(){for(let i=0;i<5;i++){const a=Math.random()*Math.PI*2;const landR=shoreRadius(a);const minR=CLEARING_RADIUS+2;const maxR=Math.max(minR+1,landR-4);if(maxR<=minR)continue;const r=minR+Math.random()*(maxR-minR);const x=Math.cos(a)*r,z=Math.sin(a)*r;const weight=1+Math.floor(Math.random()*100);const radius=(0.15+weight/100*0.25)/5;const coinMat=new THREE.MeshStandardMaterial({color:0xffd700,roughness:0.1,metalness:1.0,emissive:0xffaa00,emissiveIntensity:2.0});const coin=new THREE.Mesh(new THREE.SphereGeometry(radius,10,10),coinMat);coin.position.set(x,radius+0.1,z);coin.castShadow=false;coin.receiveShadow=false;coin.userData={t:'gold',ga:weight,c:false,isNightCoin:true};scn.add(coin);cr.push(coin);}}
+function spawnMorningLoot(){for(let i=0;i<2;i++){const a=Math.random()*Math.PI*2;const landR=grassRadius(a);const minR=CLEARING_RADIUS+2;const maxR=Math.max(minR+1,landR-4);if(maxR<=minR)continue;const r=minR+Math.random()*(maxR-minR);const x=Math.cos(a)*r,z=Math.sin(a)*r;const ct=createAKMag();ct.position.set(x,0.05,z);ct.rotation.y=Math.random()*Math.PI*2;ct.userData={t:'ammo',ga:15,c:false};scn.add(ct);cr.push(ct);}}
+function spawnNightCoins(){for(let i=0;i<5;i++){const a=Math.random()*Math.PI*2;const landR=grassRadius(a);const minR=CLEARING_RADIUS+2;const maxR=Math.max(minR+1,landR-4);if(maxR<=minR)continue;const r=minR+Math.random()*(maxR-minR);const x=Math.cos(a)*r,z=Math.sin(a)*r;const weight=1+Math.floor(Math.random()*100);const radius=(0.15+weight/100*0.25)/5;const coinMat=new THREE.MeshStandardMaterial({color:0xffd700,roughness:0.1,metalness:1.0,emissive:0xffaa00,emissiveIntensity:2.0});const coin=new THREE.Mesh(new THREE.SphereGeometry(radius,10,10),coinMat);coin.position.set(x,radius+0.1,z);coin.castShadow=false;coin.receiveShadow=false;coin.userData={t:'gold',ga:weight,c:false,isNightCoin:true};scn.add(coin);cr.push(coin);}}
 function resetSpark(i,sparkPos){const radius=(0.08+Math.random()*0.25)*2;const angle=Math.random()*Math.PI*2;sparkPos[i*3]=Math.cos(angle)*radius;sparkPos[i*3+1]=0.03+Math.random()*0.1;sparkPos[i*3+2]=Math.sin(angle)*radius;const speed=(0.25+Math.random()*1.0)*2;const theta=Math.random()*Math.PI*2;const phi=Math.random()*Math.PI*2;sparkVel[i*3]=Math.sin(theta)*Math.cos(phi)*speed;sparkVel[i*3+1]=Math.random()*1.2+0.25;sparkVel[i*3+2]=Math.sin(theta)*Math.sin(phi)*speed;sparkLife[i]=0.25+Math.random()*0.6;}
 /* ============ ХИЖИНА ============ */
 function createHut(){hutGroup=new THREE.Group();hutGroup.position.set(HUT_X,0,HUT_Z);hutInteriorGroup=new THREE.Group();hutGroup.add(hutInteriorGroup);mt.hutWall.color.setHex(0xffffff);mt.hutFloor.color.setHex(0xffffff);mt.hutCeiling.color.setHex(0xffffff);mt.strawMat.color.setHex(0x8a7a4a);mt.doorMat.color.setHex(0x5a3a1e);mt.doorPlank.color.setHex(0x6b4423);const wallRadius=4.7*1.5;const wallHeight=7.5*1.5*0.5;const floor=new THREE.Mesh(new THREE.CircleGeometry(wallRadius,48),mt.hutFloor);floor.rotation.x=-Math.PI/2;floor.position.y=0.6; floor.receiveShadow=false;floor.castShadow=false;hutGroup.add(floor);const wall=new THREE.Mesh(new THREE.CylinderGeometry(wallRadius,wallRadius,wallHeight,48,1,true),mt.hutWall);wall.position.y=wallHeight/2;wall.castShadow=true;wall.receiveShadow=false;hutGroup.add(wall);const ceiling=new THREE.Mesh(new THREE.CircleGeometry(wallRadius,48),mt.hutCeiling);
