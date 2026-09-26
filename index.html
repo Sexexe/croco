@@ -83,7 +83,7 @@ canvas{display:block;position:fixed;top:0;left:0;width:100%;height:100%;z-index:
 <div class="music-btn" id="musicBtn" title="Вкл/Выкл весь звук">🎵</div>
 </div>
 <div id="overlay" class="poster-screen"><div class="loading-background" id="loading-bg"></div><div class="loading-container" id="loading-container"><div class="loading-bar" id="loading-bar"></div></div><div class="cowboy-btn btn-disabled" id="startBtn" role="button" tabindex="0">НАЧАТЬ ОХОТУ</div></div>
-<div id="lose-screen" class="poster-screen"><div class="wanted-poster"><h1 class="main-title">ТЕБЯ СЪЕЛИ</h1><div class="desc" id="lose-desc"></div><div class="cowboy-btn" id="restartBtn" role="button" tabindex="0">🎬 ПОВТОРИТЬ</div><div class="reward-hint">Просмотр рекламы даст +100 патронов и +1000 золота</div></div></div>
+<div id="lose-screen" class="poster-screen"><div class="wanted-poster"><h1 class="main-title">ТЕБЯ СЪЕЛИ</h1><div class="desc" id="lose-desc"></div><div class="cowboy-btn" id="restartBtn" role="button" tabindex="0">🎬 ПОВТОРИТЬ</div></div></div>
 <div id="mission-success-screen"><div class="mission-bg" id="mission-bg"></div><div class="mission-success-overlay"><div class="play-btn" id="playBtn" role="button" tabindex="0">ИГРАТЬ</div><div class="cheat-hint">Shift + 2: Увеличивает скорость крокодилов в 2 раза<br>Shift + 1: Уменьшает скорость крокодилов в 2 раза</div></div></div>
 <div id="video-overlay"><video id="intro-video" playsinline webkit-playsinline preload="auto"></video></div>
 <div id="cheat-msg"></div><audio id="snd-sea" src="more.mp3" loop preload="auto"></audio>
@@ -165,48 +165,42 @@ const _sunArc=new THREE.Vector3(),_moonArc=new THREE.Vector3();
 const domCache=new Map();
 const getEl=(id)=>{if(!domCache.has(id))domCache.set(id,document.getElementById(id));return domCache.get(id);};
 const vkBridge=window.vkBridge;
-let vkBridgeReady=false,isVkEnvironment=false,isRewardAdReady=false;
+let vkBridgeReady=false,isVkEnvironment=false;
 if(vkBridge){try{vkBridge.send('VKWebAppInit').then(()=>{vkBridgeReady=true;isVkEnvironment=true;console.log('VK Bridge ready');}).catch((e)=>{isVkEnvironment=false;console.warn('VK Bridge init failed',e);});vkBridge.subscribe((event)=>{if(!event.detail||!event.detail.type)return;const{type}=event.detail;if(type==='VKWebAppViewHide')handleVisibilityChange(true);else if(type==='VKWebAppViewRestore')handleVisibilityChange(false);});}catch(e){}}
 document.addEventListener('visibilitychange',()=>handleVisibilityChange(document.hidden));
 let isMuted=false;
 function handleVisibilityChange(isHidden){if(isHidden){if(ax&&ax.state==='running')ax.suspend();if(MusicManager.ready)MusicManager.pauseAll();}else{if(!adInProgress){if(ax&&ax.state==='suspended')ax.resume().catch(()=>{});if(MusicManager.ready)MusicManager.resumeAll();}}}
-function checkRewardAdReadiness(){if(!isVkEnvironment||!vkBridge)return Promise.resolve(false);return vkBridge.send('VKWebAppCheckNativeAds',{ad_format:'reward'}).then((d)=>{isRewardAdReady=d.result;return d.result;}).catch(()=>{isRewardAdReady=false;return false;});}
-function showRewardAd(){return new Promise((resolve)=>{if(!isVkEnvironment||!vkBridge){resolve({success:false,reason:'no_bridge'});return;}checkRewardAdReadiness().then((ready)=>{if(!ready){resolve({success:false,reason:'not_ready'});return;}vkBridge.send('VKWebAppShowNativeAds',{ad_format:'reward'}).then((d)=>{resolve(d&&d.result?{success:true}:{success:false,reason:'no_result'});}).catch(()=>{resolve({success:false,reason:'error'});});});});}
 let adInProgress=false,lastInterstitialTime=0,adTimeoutHandle=null;
 const INTERSTITIAL_COOLDOWN=30000;
-function restoreMusicAfterAd(){
-  if(isMuted)return;
-  if(MusicManager.ready)MusicManager.resumeAll();
-  if(ax&&ax.state==='suspended'){ax.resume().catch(()=>{});}
-  if(cam)updateMusicVolume();
-}
-/* ===== Межстраничная реклама — теперь вызывается ТОЛЬКО при запуске игры ===== */
+function restoreMusicAfterAd(){if(isMuted)return;if(MusicManager.ready)MusicManager.resumeAll();if(ax&&ax.state==='suspended'){ax.resume().catch(()=>{});}if(cam)updateMusicVolume();}
+/* ===== INTERSTITIAL: при старте игры, работает на мобильном и ПК ===== */
 function showInterstitialAd(){
   if(adInProgress)return;
+  const now=performance.now();
+  if(now-lastInterstitialTime<INTERSTITIAL_COOLDOWN)return;
   adInProgress=true;
   if(adTimeoutHandle)clearTimeout(adTimeoutHandle);
-  adTimeoutHandle=setTimeout(()=>{
-    adInProgress=false;
-    adTimeoutHandle=null;
-    restoreMusicAfterAd();
-  },15000);
+  adTimeoutHandle=setTimeout(()=>{adInProgress=false;adTimeoutHandle=null;restoreMusicAfterAd();},15000);
   if(isVkEnvironment&&vkBridge){
     vkBridge.send('VKWebAppShowNativeAds',{ad_format:'interstitial'})
-      .then(()=>{
-        lastInterstitialTime=performance.now();
-        adInProgress=false;
-        if(adTimeoutHandle){clearTimeout(adTimeoutHandle);adTimeoutHandle=null;}
-        restoreMusicAfterAd();
-      })
-      .catch(()=>{
-        adInProgress=false;
-        if(adTimeoutHandle){clearTimeout(adTimeoutHandle);adTimeoutHandle=null;}
-        restoreMusicAfterAd();
-      });
+      .then(()=>{lastInterstitialTime=performance.now();adInProgress=false;if(adTimeoutHandle){clearTimeout(adTimeoutHandle);adTimeoutHandle=null;}restoreMusicAfterAd();})
+      .catch(()=>{adInProgress=false;if(adTimeoutHandle){clearTimeout(adTimeoutHandle);adTimeoutHandle=null;}restoreMusicAfterAd();});
   } else {
     adInProgress=false;
     if(adTimeoutHandle){clearTimeout(adTimeoutHandle);adTimeoutHandle=null;}
   }
+}
+/* ===== REWARD: при перезапуске, без наград, работает на мобильном и ПК ===== */
+function showRewardAd(){
+  return new Promise((resolve)=>{
+    if(isVkEnvironment&&vkBridge){
+      vkBridge.send('VKWebAppShowNativeAds',{ad_format:'reward'})
+        .then(()=>resolve(true))
+        .catch(()=>resolve(false));
+    } else {
+      resolve(false);
+    }
+  });
 }
 let lastTapticTime=0;
 function vkTapticFeedback(t='light'){const now=performance.now();const min=t==='light'?90:220;if(now-lastTapticTime<min)return null;lastTapticTime=now;return isVkEnvironment&&vkBridge?vkBridge.send('VKWebAppTapticFeedback',{type:t}).catch(()=>{}):null;}
@@ -220,130 +214,26 @@ let ax=null,_noiseBuffer=null,_masterOutput=null,_delayIn=null;
 let sndSea=null,sndFire=null,sndCrox=null;
 function initEnvSounds(){if(sndSea)return;sndSea=document.getElementById('snd-sea');sndFire=document.getElementById('snd-fire');sndCrox=document.getElementById('snd-crox');if(sndSea){sndSea.volume=0;sndSea.play().catch(()=>{});}if(sndFire){sndFire.volume=0;sndFire.play().catch(()=>{});}}
 function updateEnvSounds(){if(!cam)return;if(!sndSea||!sndFire)initEnvSounds();const px=cam.position.x,pz=cam.position.z;const dc=Math.sqrt(px*px+pz*pz);const landR=getLandRadiusAt(px,pz);const distToShore=Math.abs(dc-landR);const seaVol=Math.max(0,Math.min(1,(25-distToShore)/25));const seaTarget=isMuted?0:seaVol*0.5;if(sndSea)sndSea.volume+=(seaTarget-sndSea.volume)*0.05;const distToHut=Math.sqrt((px-HUT_X)**2+(pz-HUT_Z)**2);const fireVol=Math.max(0,Math.min(1,(14-distToHut)/14));const fireTarget=isMuted?0:fireVol*0.45;if(sndFire)sndFire.volume+=(fireTarget-sndFire.volume)*0.05;}
-function sfxCroxWithDelay(){if(isMuted||!sndCrox)return;const baseVol=1.4;try{const src=sndCrox.cloneNode(true);src.volume=baseVol;src.play().catch(()=>{});}catch(e){}setTimeout(()=>{if(isMuted||!sndCrox)return;try{const src2=sndCrox.cloneNode(true);src2.volume=baseVol*0.6;src2.play().catch(()=>{});}catch(e){}},220);setTimeout(()=>{if(isMuted||!sndCrox)return;try{const src3=sndCrox.cloneNode(true);src3.volume=baseVol*0.4;src3.play().catch(()=>{});}catch(e){}},480);setTimeout(()=>{if(isMuted||!sndCrox)return;try{const src4=sndCrox.cloneNode(true);src4.volume=baseVol*0.25;src4.play().catch(()=>{});}catch(e){}},820);}
+/* ===== УПРОЩЕНО: один вызов вместо четырёх — лучше работает на iOS ===== */
+function sfxCroxWithDelay(){if(isMuted||!sndCrox)return;try{const src=sndCrox.cloneNode(true);src.volume=1.4;src.play().catch(()=>{});}catch(e){}}
 function initAudio(){if(ax)return;try{const AC=window.AudioContext||window.webkitAudioContext;ax=new AC();const bufSize=ax.sampleRate*2;_noiseBuffer=ax.createBuffer(1,bufSize,ax.sampleRate);const data=_noiseBuffer.getChannelData(0);for(let i=0;i<bufSize;i++)data[i]=Math.random()*2-1;const comp=ax.createDynamicsCompressor();comp.threshold.value=-15;comp.knee.value=20;comp.ratio.value=12;comp.attack.value=0.001;comp.release.value=0.1;const saturator=ax.createWaveShaper();const curve=new Float32Array(256);for(let i=0;i<256;i++){const x=(i/128)-1;curve[i]=Math.tanh(x*2);}saturator.curve=curve;const limiter=ax.createDynamicsCompressor();limiter.threshold.value=-3;limiter.knee.value=0;limiter.ratio.value=20;limiter.attack.value=0.001;limiter.release.value=0.01;comp.connect(saturator);saturator.connect(limiter);limiter.connect(ax.destination);_masterOutput=comp;_delayIn=ax.createGain();_delayIn.gain.value=1.0;const d1=ax.createDelay(1.0);d1.delayTime.value=0.27;const g1=ax.createGain();g1.gain.value=0.4;const d2=ax.createDelay(1.0);d2.delayTime.value=0.27;const g2=ax.createGain();g2.gain.value=0.4;_delayIn.connect(d1);d1.connect(g1);g1.connect(_masterOutput);g1.connect(d2);d2.connect(g2);g2.connect(_masterOutput);if(ax.state==='suspended'){const resume=()=>{ax.resume();document.removeEventListener('touchstart',resume);document.removeEventListener('click',resume);document.removeEventListener('mousedown',resume)};document.addEventListener('touchstart',resume);document.addEventListener('click',resume);document.addEventListener('mousedown',resume);}}catch(e){}}
 function makeSfxOut(){const out=ax.createGain();out.gain.value=1;out.connect(_masterOutput);if(_delayIn)out.connect(_delayIn);return out;}
 function createAudioElement(url){const a=new Audio();a.loop=true;a.preload='auto';a.src=url;a.setAttribute('playsinline','');if(isIOS)a.setAttribute('x-webkit-airplay','allow');return a}
-
-/* ================== МУЗЫКА: ДЕНЬ / НОЧЬ ================== */
-const DAY_TRACKS  = ['c1.mp3','c2.mp3','c3.mp3','c4.mp3','c5.mp3','c6.mp3'];
-const NIGHT_TRACKS = ['n1.mp3','n2.mp3','n3.mp3','n4.mp3','n5.mp3','n6.mp3'];
-
-const MusicManager = {
-  ready: false,
-  mode: 'none',
-  dayIndex: 0,
-  nightIndex: 0,
-  dayEl: null,
-  nightEl: null,
-  dayVol: 0,
-  nightVol: 0,
-  targetDayVol: 0,
-  targetNightVol: 0,
-  fadeSpeed: 0.35,
-
-  init() {
-    if (this.ready) return;
-    this.dayEl = new Audio();
-    this.nightEl = new Audio();
-    [this.dayEl, this.nightEl].forEach(el => {
-      el.loop = false;
-      el.preload = 'auto';
-      el.setAttribute('playsinline', '');
-      el.volume = 0;
-    });
-    this.dayEl.addEventListener('ended', () => {
-      this.dayIndex = (this.dayIndex + 1) % DAY_TRACKS.length;
-      this._loadDay();
-      if (this.mode === 'day' && !isMuted) this.dayEl.play().catch(()=>{});
-    });
-    this.nightEl.addEventListener('ended', () => {
-      this.nightIndex = (this.nightIndex + 1) % NIGHT_TRACKS.length;
-      this._loadNight();
-      if (this.mode === 'night' && !isMuted) this.nightEl.play().catch(()=>{});
-    });
-    this._loadDay();
-    this._loadNight();
-    this.ready = true;
-  },
-
-  _loadDay() {
-    this.dayEl.src = DAY_TRACKS[this.dayIndex];
-    this.dayEl.load();
-  },
-  _loadNight() {
-    this.nightEl.src = NIGHT_TRACKS[this.nightIndex];
-    this.nightEl.load();
-  },
-
-  setMode(mode) {
-    if (!this.ready) this.init();
-    if (this.mode === mode) return;
-    this.mode = mode;
-    if (mode === 'day') {
-      if (this.dayEl.paused && !isMuted) this.dayEl.play().catch(()=>{});
-      this.targetDayVol = 1.0;
-      this.targetNightVol = 0.0;
-    } else if (mode === 'night') {
-      if (this.nightEl.paused && !isMuted) this.nightEl.play().catch(()=>{});
-      this.targetNightVol = 1.0;
-      this.targetDayVol = 0.0;
-    } else {
-      this.targetDayVol = 0.0;
-      this.targetNightVol = 0.0;
-    }
-  },
-
-  pauseAll() {
-    if (!this.ready) return;
-    this.dayEl.pause();
-    this.nightEl.pause();
-  },
-  resumeAll() {
-    if (!this.ready) return;
-    if (this.mode === 'day' && !isMuted) this.dayEl.play().catch(()=>{});
-    if (this.mode === 'night' && !isMuted) this.nightEl.play().catch(()=>{});
-  },
-
-  update(dt) {
-    if (!this.ready) return;
-    const step = this.fadeSpeed * dt;
-    this.dayVol   += Math.sign(this.targetDayVol   - this.dayVol)   * Math.min(step, Math.abs(this.targetDayVol   - this.dayVol));
-    this.nightVol += Math.sign(this.targetNightVol - this.nightVol) * Math.min(step, Math.abs(this.targetNightVol - this.nightVol));
-
-    if (this.dayVol   < 0.01 && this.targetDayVol   === 0 && !this.dayEl.paused)   this.dayEl.pause();
-    if (this.nightVol < 0.01 && this.targetNightVol === 0 && !this.nightEl.paused) this.nightEl.pause();
-
-    const pos = getMusicPositionFactor();
-    this.dayEl.volume   = isMuted ? 0 : Math.max(0, Math.min(1, this.dayVol   * pos));
-    this.nightEl.volume = isMuted ? 0 : Math.max(0, Math.min(1, this.nightVol * pos * 0.5));
-  }
-};
-
-function getMusicPositionFactor() {
-  if (!cam) return 1;
-  const px = cam.position.x, pz = cam.position.z;
-  const dist = Math.sqrt(px*px + pz*pz);
-  const maxDist = C.ms / 2;
-  const norm = Math.min(dist / maxDist, 1);
-  return 1.0 - norm * 0.75;
-}
-
-function startMusic() {
-  MusicManager.init();
-  MusicManager.setMode('day');
-  getEl('musicBtn').classList.add('playing');
-}
-function stopMusic() {
-  MusicManager.setMode('none');
-  MusicManager.pauseAll();
-  const btn = getEl('musicBtn');
-  btn.classList.remove('playing');
-  btn.innerHTML = '🎵';
-}
-function updateMusicVolume() {
-  MusicManager.update(1/60);
-}
+/* ================== МУЗЫКА ================== */
+const DAY_TRACKS=['c1.mp3','c2.mp3','c3.mp3','c4.mp3','c5.mp3','c6.mp3'];
+const NIGHT_TRACKS=['n1.mp3','n2.mp3','n3.mp3','n4.mp3','n5.mp3','n6.mp3'];
+const MusicManager={ready:false,mode:'none',dayIndex:0,nightIndex:0,dayEl:null,nightEl:null,dayVol:0,nightVol:0,targetDayVol:0,targetNightVol:0,fadeSpeed:0.35,
+init(){if(this.ready)return;this.dayEl=new Audio();this.nightEl=new Audio();[this.dayEl,this.nightEl].forEach(el=>{el.loop=false;el.preload='auto';el.setAttribute('playsinline','');el.volume=0;});this.dayEl.addEventListener('ended',()=>{this.dayIndex=(this.dayIndex+1)%DAY_TRACKS.length;this._loadDay();if(this.mode==='day'&&!isMuted)this.dayEl.play().catch(()=>{});});this.nightEl.addEventListener('ended',()=>{this.nightIndex=(this.nightIndex+1)%NIGHT_TRACKS.length;this._loadNight();if(this.mode==='night'&&!isMuted)this.nightEl.play().catch(()=>{});});this._loadDay();this._loadNight();this.ready=true;},
+_loadDay(){this.dayEl.src=DAY_TRACKS[this.dayIndex];this.dayEl.load();},
+_loadNight(){this.nightEl.src=NIGHT_TRACKS[this.nightIndex];this.nightEl.load();},
+setMode(mode){if(!this.ready)this.init();if(this.mode===mode)return;this.mode=mode;if(mode==='day'){if(this.dayEl.paused&&!isMuted)this.dayEl.play().catch(()=>{});this.targetDayVol=1.0;this.targetNightVol=0.0;}else if(mode==='night'){if(this.nightEl.paused&&!isMuted)this.nightEl.play().catch(()=>{});this.targetNightVol=1.0;this.targetDayVol=0.0;}else{this.targetDayVol=0.0;this.targetNightVol=0.0;}},
+pauseAll(){if(!this.ready)return;this.dayEl.pause();this.nightEl.pause();},
+resumeAll(){if(!this.ready)return;if(this.mode==='day'&&!isMuted)this.dayEl.play().catch(()=>{});if(this.mode==='night'&&!isMuted)this.nightEl.play().catch(()=>{});},
+update(dt){if(!this.ready)return;const step=this.fadeSpeed*dt;this.dayVol+=Math.sign(this.targetDayVol-this.dayVol)*Math.min(step,Math.abs(this.targetDayVol-this.dayVol));this.nightVol+=Math.sign(this.targetNightVol-this.nightVol)*Math.min(step,Math.abs(this.targetNightVol-this.nightVol));if(this.dayVol<0.01&&this.targetDayVol===0&&!this.dayEl.paused)this.dayEl.pause();if(this.nightVol<0.01&&this.targetNightVol===0&&!this.nightEl.paused)this.nightEl.pause();const pos=getMusicPositionFactor();this.dayEl.volume=isMuted?0:Math.max(0,Math.min(1,this.dayVol*pos));this.nightEl.volume=isMuted?0:Math.max(0,Math.min(1,this.nightVol*pos*0.5));}};
+function getMusicPositionFactor(){if(!cam)return 1;const px=cam.position.x,pz=cam.position.z;const dist=Math.sqrt(px*px+pz*pz);const maxDist=C.ms/2;const norm=Math.min(dist/maxDist,1);return 1.0-norm*0.75;}
+function startMusic(){MusicManager.init();MusicManager.setMode('day');getEl('musicBtn').classList.add('playing');}
+function stopMusic(){MusicManager.setMode('none');MusicManager.pauseAll();const btn=getEl('musicBtn');btn.classList.remove('playing');btn.innerHTML='🎵';}
+function updateMusicVolume(){MusicManager.update(1/60);}
 function toggleMute(){isMuted=!isMuted;const btn=getEl('musicBtn');if(isMuted){btn.innerHTML='🔇';btn.classList.remove('playing');MusicManager.pauseAll();if(ax&&ax.state==='running')ax.suspend();if(sndSea)sndSea.volume=0;if(sndFire)sndFire.volume=0;}else{btn.innerHTML='🎵';if(!ax)initAudio();if(ax&&ax.state!=='running')ax.resume().catch(()=>{});if(MusicManager.mode!=='none'){MusicManager.resumeAll();btn.classList.add('playing');}if(sndSea)sndSea.play().catch(()=>{});if(sndFire)sndFire.play().catch(()=>{});}}
 function sfxShoot(){if(!ax||isMuted||!_masterOutput)return;if(ax.state!=='running')ax.resume().catch(()=>{});const t=ax.currentTime;const shotOut=ax.createGain();shotOut.gain.value=0.5;shotOut.connect(_masterOutput);const cfg={subFreq:20,subDur:1.2,bodyFreq:50,bodyDur:0.7,crackFreq:6000,tailDur:2.0,distortion:7};function makeNoiseSource(){const src=ax.createBufferSource();src.buffer=_noiseBuffer;src.loop=true;return src;}const sub=ax.createOscillator();sub.type='sine';sub.frequency.setValueAtTime(cfg.subFreq*1.5,t);sub.frequency.exponentialRampToValueAtTime(cfg.subFreq,t+0.05);sub.frequency.exponentialRampToValueAtTime(cfg.subFreq*0.5,t+cfg.subDur);const subGain=ax.createGain();subGain.gain.setValueAtTime(0,t);subGain.gain.linearRampToValueAtTime(0.75,t+0.002);subGain.gain.exponentialRampToValueAtTime(0.01,t+cfg.subDur);const subDist=ax.createWaveShaper();const subCurve=new Float32Array(256);for(let i=0;i<256;i++){const x=(i/128)-1;subCurve[i]=Math.tanh(x*cfg.distortion);}subDist.curve=subCurve;sub.connect(subDist);subDist.connect(subGain);subGain.connect(shotOut);sub.start(t);sub.stop(t+cfg.subDur);sub.onended=()=>{try{sub.disconnect();subDist.disconnect();subGain.disconnect();}catch(e){}};const bodyNoise=makeNoiseSource();const bodyFilter=ax.createBiquadFilter();bodyFilter.type='bandpass';bodyFilter.frequency.setValueAtTime(cfg.bodyFreq*3,t);bodyFilter.frequency.exponentialRampToValueAtTime(cfg.bodyFreq,t+0.03);bodyFilter.Q.value=2;const bodyGain=ax.createGain();bodyGain.gain.setValueAtTime(0,t);bodyGain.gain.linearRampToValueAtTime(0.6,t+0.001);bodyGain.gain.exponentialRampToValueAtTime(0.01,t+cfg.bodyDur);const bodyDist=ax.createWaveShaper();const bodyCurve=new Float32Array(256);for(let i=0;i<256;i++){const x=(i/128)-1;bodyCurve[i]=(Math.PI+cfg.distortion)*x/(Math.PI+cfg.distortion*Math.abs(x));}bodyDist.curve=bodyCurve;bodyNoise.connect(bodyFilter);bodyFilter.connect(bodyDist);bodyDist.connect(bodyGain);bodyGain.connect(shotOut);bodyNoise.start(t);bodyNoise.stop(t+cfg.bodyDur);bodyNoise.onended=()=>{try{bodyNoise.disconnect();bodyFilter.disconnect();bodyDist.disconnect();bodyGain.disconnect();}catch(e){}};const crack=makeNoiseSource();const crackFilter=ax.createBiquadFilter();crackFilter.type='highpass';crackFilter.frequency.value=cfg.crackFreq;crackFilter.Q.value=1;const crackGain=ax.createGain();crackGain.gain.setValueAtTime(0.4,t);crackGain.gain.exponentialRampToValueAtTime(0.01,t+0.08);crack.connect(crackFilter);crackFilter.connect(crackGain);crackGain.connect(shotOut);crack.start(t);crack.stop(t+0.08);crack.onended=()=>{try{crack.disconnect();crackFilter.disconnect();crackGain.disconnect();}catch(e){}};const tail=makeNoiseSource();const tailFilter=ax.createBiquadFilter();tailFilter.type='lowpass';tailFilter.frequency.setValueAtTime(1500,t);tailFilter.frequency.exponentialRampToValueAtTime(300,t+cfg.tailDur);tailFilter.Q.value=0.5;const tailGain=ax.createGain();tailGain.gain.setValueAtTime(0.2,t+0.05);tailGain.gain.exponentialRampToValueAtTime(0.01,t+cfg.tailDur);tail.connect(tailFilter);tailFilter.connect(tailGain);tailGain.connect(shotOut);tail.start(t);tail.stop(t+cfg.tailDur);tail.onended=()=>{try{tail.disconnect();tailFilter.disconnect();tailGain.disconnect();}catch(e){}};const mech=makeNoiseSource();const mechFilter=ax.createBiquadFilter();mechFilter.type='bandpass';mechFilter.frequency.value=800;mechFilter.Q.value=5;const mechGain=ax.createGain();mechGain.gain.setValueAtTime(0,t+0.08);mechGain.gain.linearRampToValueAtTime(0.15,t+0.085);mechGain.gain.exponentialRampToValueAtTime(0.01,t+0.2);mech.connect(mechFilter);mechFilter.connect(mechGain);mechGain.connect(shotOut);mech.start(t+0.08);mech.stop(t+0.2);mech.onended=()=>{try{mech.disconnect();mechFilter.disconnect();mechGain.disconnect();}catch(e){}};const ring=ax.createOscillator();ring.type='triangle';ring.frequency.value=150+(7*30);const ringFilter=ax.createBiquadFilter();ringFilter.type='bandpass';ringFilter.frequency.value=ring.frequency.value;ringFilter.Q.value=15;const ringGain=ax.createGain();ringGain.gain.setValueAtTime(0,t+0.01);ringGain.gain.linearRampToValueAtTime(0.075,t+0.015);ringGain.gain.exponentialRampToValueAtTime(0.01,t+0.4);ring.connect(ringFilter);ringFilter.connect(ringGain);ringGain.connect(shotOut);ring.start(t);ring.stop(t+0.4);ring.onended=()=>{try{ring.disconnect();ringFilter.disconnect();ringGain.disconnect();}catch(e){}};}
 function sfxDrink(){if(!ax||isMuted||!_masterOutput)return;if(ax.state!=='running')ax.resume().catch(()=>{});try{const t=ax.currentTime;const out=makeSfxOut();function makeNoiseSource(){const src=ax.createBufferSource();src.buffer=_noiseBuffer;src.loop=true;return src;}const openClick=makeNoiseSource();const openFilter=ax.createBiquadFilter();openFilter.type='bandpass';openFilter.frequency.value=2500;openFilter.Q.value=3;const openGain=ax.createGain();openGain.gain.setValueAtTime(0.4,t);openGain.gain.exponentialRampToValueAtTime(0.01,t+0.05);openClick.connect(openFilter);openFilter.connect(openGain);openGain.connect(out);openClick.start(t);openClick.stop(t+0.05);openClick.onended=()=>{try{openClick.disconnect();openFilter.disconnect();openGain.disconnect();}catch(e){}};const hiss=makeNoiseSource();const hissFilter=ax.createBiquadFilter();hissFilter.type='highpass';hissFilter.frequency.value=4000;hissFilter.Q.value=0.5;const hissGain=ax.createGain();hissGain.gain.setValueAtTime(0,t+0.02);hissGain.gain.linearRampToValueAtTime(0.15,t+0.04);hissGain.gain.exponentialRampToValueAtTime(0.01,t+0.4);hiss.connect(hissFilter);hissFilter.connect(hissGain);hissGain.connect(out);hiss.start(t+0.02);hiss.stop(t+0.4);hiss.onended=()=>{try{hiss.disconnect();hissFilter.disconnect();hissGain.disconnect();}catch(e){}};for(let i=0;i<4;i++){const bubbleTime=t+0.3+i*0.12;const bubble=ax.createOscillator();bubble.type='sine';bubble.frequency.setValueAtTime(400+Math.random()*100,bubbleTime);bubble.frequency.exponentialRampToValueAtTime(150+Math.random()*50,bubbleTime+0.08);const bubbleGain=ax.createGain();bubbleGain.gain.setValueAtTime(0,bubbleTime);bubbleGain.gain.linearRampToValueAtTime(0.25,bubbleTime+0.01);bubbleGain.gain.exponentialRampToValueAtTime(0.01,bubbleTime+0.08);const bubbleFilter=ax.createBiquadFilter();bubbleFilter.type='lowpass';bubbleFilter.frequency.value=800;bubbleFilter.Q.value=2;bubble.connect(bubbleFilter);bubbleFilter.connect(bubbleGain);bubbleGain.connect(out);bubble.start(bubbleTime);bubble.stop(bubbleTime+0.1);bubble.onended=()=>{try{bubble.disconnect();bubbleFilter.disconnect();bubbleGain.disconnect();}catch(e){}};}for(let i=0;i<3;i++){const gulpTime=t+0.25+i*0.15;const gulp=ax.createOscillator();gulp.type='sine';gulp.frequency.setValueAtTime(200,gulpTime);gulp.frequency.exponentialRampToValueAtTime(80,gulpTime+0.07);const gulpGain=ax.createGain();gulpGain.gain.setValueAtTime(0,gulpTime);gulpGain.gain.linearRampToValueAtTime(0.3,gulpTime+0.005);gulpGain.gain.exponentialRampToValueAtTime(0.01,gulpTime+0.07);const gulpFilter=ax.createBiquadFilter();gulpFilter.type='lowpass';gulpFilter.frequency.value=500;gulpFilter.Q.value=3;gulp.connect(gulpFilter);gulpFilter.connect(gulpGain);gulpGain.connect(out);gulp.start(gulpTime);gulp.stop(gulpTime+0.08);gulp.onended=()=>{try{gulp.disconnect();gulpFilter.disconnect();gulpGain.disconnect();}catch(e){}};}const sigh=ax.createOscillator();sigh.type='sine';sigh.frequency.setValueAtTime(180,t+0.8);sigh.frequency.linearRampToValueAtTime(220,t+1.2);sigh.frequency.exponentialRampToValueAtTime(120,t+1.6);const sighGain=ax.createGain();sighGain.gain.setValueAtTime(0,t+0.8);sighGain.gain.linearRampToValueAtTime(0.2,t+0.95);sighGain.gain.exponentialRampToValueAtTime(0.01,t+1.6);const sighFilter=ax.createBiquadFilter();sighFilter.type='bandpass';sighFilter.frequency.value=400;sighFilter.Q.value=1;sigh.connect(sighFilter);sighFilter.connect(sighGain);sighGain.connect(out);sigh.start(t+0.8);sigh.stop(t+1.6);sigh.onended=()=>{try{sigh.disconnect();sighFilter.disconnect();sighGain.disconnect();}catch(e){}};}catch(e){}}
@@ -709,7 +599,6 @@ let mapleTrunkInst=null;
 let mapleTrunkGeo=null;
 const MAPLE_TREE_COUNT = 50;
 const MAPLE_HEIGHT_MUL = 1.5;
-
 const LEAF_COMBOS = (() => {
   const combos = [];
   for (let c = 0; c < 5; c++) {
@@ -724,7 +613,6 @@ const LEAF_COMBOS = (() => {
   }
   return combos;
 })();
-
 function buildMapleModel() {
   const trunkParts = [];
   const trunkH = 9.0 * MAPLE_HEIGHT_MUL;
@@ -733,7 +621,6 @@ function buildMapleModel() {
   const trunkGeo = new THREE.CylinderGeometry(trunkTopR, trunkR, trunkH, 8, 1);
   trunkGeo.translate(0, trunkH/2, 0);
   trunkParts.push(trunkGeo);
-
   const H = MAPLE_HEIGHT_MUL;
   const leafClusters = [
     [0,     trunkH + 0.9*H,  0,     3.1],
@@ -762,7 +649,6 @@ function buildMapleModel() {
     [0.7,   trunkH + 3.0*H,  1.85,  1.8],
     [-0.85, trunkH + 2.9*H, -1.95,  1.8],
   ];
-
   const comboGeos = LEAF_COMBOS.map(triple => {
     const parts = [];
     leafClusters.forEach(([x, y, z, size], ci) => {
@@ -787,18 +673,15 @@ function buildMapleModel() {
     });
     return mergeGeometries(parts);
   });
-
   return {
     trunkGeo: mergeGeometries(trunkParts),
     comboGeos: comboGeos,
     height: trunkH + 7.5 * MAPLE_HEIGHT_MUL
   };
 }
-
 function buildAllMaples() {
   const model = buildMapleModel();
   mapleTrunkGeo = model.trunkGeo;
-
   const trunkMat = new THREE.MeshStandardMaterial({
     color: 0x8a6a4a, roughness: 0.85, metalness: 0.0
   });
@@ -808,12 +691,10 @@ function buildAllMaples() {
     flatShading: true,
     vertexColors: true
   });
-
   mapleTrunkInst = new THREE.InstancedMesh(mapleTrunkGeo, trunkMat, MAPLE_TREE_COUNT);
   mapleTrunkInst.castShadow = true;
   mapleTrunkInst.receiveShadow = true;
   mapleTrunkInst.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-
   const leafInsts = model.comboGeos.map(geo =>
     new THREE.InstancedMesh(geo, leafMat, MAPLE_TREE_COUNT)
   );
@@ -823,7 +704,6 @@ function buildAllMaples() {
     inst.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     inst.count = 0;
   });
-
   const dummy = new THREE.Object3D();
   const placed = [];
   const MIN_DIST = 3.5;
@@ -843,7 +723,6 @@ function buildAllMaples() {
     if (r > grassRadius(a) - 2) continue;
     placed.push({ x, z });
   }
-
   for (let i = 0; i < placed.length; i++) {
     const p = placed[i];
     const scaleBase = 0.5 + Math.random() * 1.0;
@@ -856,21 +735,17 @@ function buildAllMaples() {
     dummy.rotation.z = (Math.random() - 0.5) * 0.08;
     dummy.scale.set(scaleX, scaleY, scaleZ);
     dummy.updateMatrix();
-
     mapleTrunkInst.setMatrixAt(i, dummy.matrix);
     const comboIdx = Math.floor(Math.random() * leafInsts.length);
     leafInsts[comboIdx].setMatrixAt(leafInsts[comboIdx].count++, dummy.matrix);
   }
-
   mapleTrunkInst.instanceMatrix.needsUpdate = true;
   scn.add(mapleTrunkInst);
-
   const emptyM = new THREE.Matrix4().makeScale(0, 0, 0);
   for (let i = placed.length; i < MAPLE_TREE_COUNT; i++) {
     mapleTrunkInst.setMatrixAt(i, emptyM);
   }
   mapleTrunkInst.instanceMatrix.needsUpdate = true;
-
   leafInsts.forEach(inst => {
     for (let i = inst.count; i < MAPLE_TREE_COUNT; i++) {
       inst.setMatrixAt(i, emptyM);
@@ -879,8 +754,7 @@ function buildAllMaples() {
     scn.add(inst);
   });
 }
-
-/* ============ КАМНИ (InstancedMesh) ============ */
+/* ============ КАМНИ ============ */
 let rockInst = null;
 let rockShoreInst = null;
 const ROCK_COUNT = 45;
@@ -985,7 +859,6 @@ function buildAllRocks() {
   rockInst.instanceMatrix.needsUpdate = true;
   if (rockInst.instanceColor) rockInst.instanceColor.needsUpdate = true;
   scn.add(rockInst);
-
   rockShoreInst = new THREE.InstancedMesh(baseGeo, rockMat, ROCK_SHORE_COUNT);
   rockShoreInst.castShadow = false;
   rockShoreInst.receiveShadow = true;
@@ -1555,7 +1428,7 @@ uH();});const dayDisplay=getEl('day-display');if(dayDisplay)dayDisplay.innerText
     if(p&&p.catch)p.catch(()=>{});
   }catch(e){}
 }
-/* ===== Межстраничная реклама сразу после запуска игры ===== */
+/* ===== Межстраничная реклама при старте игры ===== */
 showInterstitialAd();}
 window.sG=sG;
 function onR(){cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();rnd.setPixelRatio(currentPixelRatio);rnd.setSize(innerWidth,innerHeight);}
@@ -1576,27 +1449,13 @@ scn.fog=new THREE.FogExp2(0x0a1525,0.028);_moonDirWorld.copy(computeMoonDir(0));
 if(!globalThis.__crocKeysBound){globalThis.__crocKeysBound=true;document.addEventListener('keydown',e=>{if(e.code==='ArrowUp')tvKeys.up=true;else if(e.code==='ArrowDown')tvKeys.down=true;else if(e.code==='ArrowLeft')tvKeys.left=true;else if(e.code==='ArrowRight')tvKeys.right=true;else if(e.code==='Enter')tvKeys.enter=true;if(e.code==='Space'&&ia&&!pl.d){e.preventDefault();isStopped=!isStopped;updateMoveBtn();}if(e.shiftKey&&e.code==='Digit2'){crocodileSpeedMultiplier*=2.0;showCheatMessage(`⚡ СКОРОСТЬ КРОКОДИЛОВ x2! (${crocodileSpeedMultiplier.toFixed(2)})`);en.forEach(c=>{if(c.sp)c.sp*=2.0;});}if(e.shiftKey&&e.code==='Digit1'){crocodileSpeedMultiplier/=2.0;showCheatMessage(`🐌 СКОРОСТЬ КРОКОДИЛОВ /2! (${crocodileSpeedMultiplier.toFixed(2)})`);en.forEach(c=>{if(c.sp)c.sp/=2.0;});}if(e.code==='AudioVolumeUp'||e.keyCode===24){if(e.cancelable)e.preventDefault();crocodileSpeedMultiplier*=2.0;showCheatMessage(`⚡ СКОРОСТЬ КРОКОДИЛОВ x2! (${crocodileSpeedMultiplier.toFixed(2)})`);en.forEach(c=>{if(c.sp)c.sp*=2.0;});}else if(e.code==='AudioVolumeDown'||e.keyCode===25){if(e.cancelable)e.preventDefault();crocodileSpeedMultiplier/=2.0;showCheatMessage(`🐌 СКОРОСТЬ КРОКОДИЛОВ /2! (${crocodileSpeedMultiplier.toFixed(2)})`);en.forEach(c=>{if(c.sp)c.sp/=2.0;});}});document.addEventListener('keyup',e=>{if(e.code==='ArrowUp')tvKeys.up=false;else if(e.code==='ArrowDown')tvKeys.down=false;else if(e.code==='ArrowLeft')tvKeys.left=false;else if(e.code==='ArrowRight')tvKeys.right=false;else if(e.code==='Enter')tvKeys.enter=false;});}
 if(isMob){if(moveBtn){moveBtn.style.display='flex';moveBtn.addEventListener('touchend',e=>{e.preventDefault();e.stopPropagation();isStopped=!isStopped;updateMoveBtn();});moveBtn.addEventListener('click',e=>{e.stopPropagation();isStopped=!isStopped;updateMoveBtn();});}document.addEventListener('touchstart',e=>{if(!ia||pl.d)return;const target=e.target;if(target&&target.closest&&(target.closest('.cowboy-btn')||target.closest('.move-btn')||target.closest('.music-btn')||target.closest('.menu-btn')||target.closest('.play-btn')))return;if(e.touches.length>=2){isTwoFingersTouching=true;isDragging=false;checkBurstState();return;}touchStartX=e.touches[0].clientX;touchStartY=e.touches[0].clientY;isDragging=false;},{passive:false});document.addEventListener('touchmove',e=>{if(!ia||pl.d)return;if(isTwoFingersTouching){if(e.touches.length<2){isTwoFingersTouching=false;checkBurstState();}return;}e.preventDefault();const dx=e.touches[0].clientX-touchStartX;const dy=e.touches[0].clientY-touchStartY;if(Math.abs(dx)>5||Math.abs(dy)>5)isDragging=true;if(isDragging){yaw-=dx*0.005;pitch-=dy*0.005;pitch=Math.max(-Math.PI/2+0.1,Math.min(Math.PI/2-0.1,pitch));updateCamRot();touchStartX=e.touches[0].clientX;touchStartY=e.touches[0].clientY;}},{passive:false});document.addEventListener('touchend',e=>{if(!ia||pl.d)return;if(isTwoFingersTouching){if(e.touches.length<2){isTwoFingersTouching=false;checkBurstState();}return;}if(!isDragging)fireCenter();},{passive:false});document.addEventListener('touchcancel',()=>{isTwoFingersTouching=false;checkBurstState();},{passive:false});}else{if(moveBtn)moveBtn.style.display='none';document.addEventListener('mousedown',e=>{if(!ia||pl.d)return;if(e.button===0){isLeftMouseDown=true;checkBurstState();}else if(e.button===2){isRightMouseDown=true;isStopped=!isStopped;updateMoveBtn();}});document.addEventListener('mouseup',e=>{if(e.button===0){isLeftMouseDown=false;checkBurstState();}else if(e.button===2){isRightMouseDown=false;checkBurstState();}});document.addEventListener('contextmenu',e=>e.preventDefault());document.addEventListener('mousemove',e=>{if(document.pointerLockElement===document.body){yaw-=e.movementX*0.002;pitch-=e.movementY*0.002;pitch=Math.max(-Math.PI/2+0.1,Math.min(Math.PI/2-0.1,pitch));updateCamRot();}});document.addEventListener('click',e=>{if(!ia||pl.d)return;const target=e.target;if(target&&target.closest&&(target.closest('.cowboy-btn')||target.closest('.move-btn')||target.closest('.music-btn')||target.closest('.menu-btn')||target.closest('.play-btn')))return;if(document.body.requestPointerLock)document.body.requestPointerLock();});window.addEventListener('blur',()=>{isLeftMouseDown=false;isRightMouseDown=false;checkBurstState();});}
 addEventListener('resize',onR);const startBtnMain=getEl('startBtn');const doStart=()=>{if(starting)return;starting=true;const videoOverlay=getEl('video-overlay');const video=getEl('intro-video');if(!videoOverlay||!video){sG();starting=false;return;}videoOverlay.style.display='block';video.src='https://sexexe.github.io/croco/0716.mp4';let videoDone=false;const startGameAfterVideo=()=>{if(videoDone)return;videoDone=true;video.pause();videoOverlay.style.display='none';video.removeAttribute('src');video.load();sG();starting=false;};video.onended=startGameAfterVideo;video.onerror=startGameAfterVideo;video.onclick=startGameAfterVideo;video.play().catch(()=>{startGameAfterVideo();});};if(startBtnMain){startBtnMain.addEventListener('click',e=>{if(e.cancelable)e.preventDefault();doStart();});startBtnMain.addEventListener('touchend',e=>{if(e.cancelable)e.preventDefault();doStart();});}const playBtn=getEl('playBtn');const doPlay=()=>{if(missionChanging)return;missionChanging=true;stopMusic();nextMission();missionChanging=false;};if(playBtn){playBtn.addEventListener('click',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doPlay();});playBtn.addEventListener('touchend',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doPlay();});}
-/* ===== Reward-реклама после перезапуска: +100 патронов, +1000 oz ===== */
+/* ===== REWARD при перезапуске — без наград, работает на мобильном и ПК ===== */
 const restartBtn=getEl('restartBtn');
 const doRestart=()=>{
   if(restarting)return;
   restarting=true;
   restartBtn.classList.add('btn-disabled');
-  showRewardAd().then(result=>{
-    restarting=false;
-    restartBtn.classList.remove('btn-disabled');
-    if(result.success){
-      // Начисляем награду: +100 патронов и +1000 золота
-      pl.a += 100;
-      pl.g += 1000;
-      saveGoldProgress();
-      uH();
-      sM('pickup-msg','+100 <span class="scl-ammo">ПАТРОНЫ</span> +1000 <span class="scl-gold">ЗОЛОТО</span>');
-      sG();
-    } else {
-      sG();
-    }
-  }).catch(()=>{
+  showRewardAd().then(()=>{
     restarting=false;
     restartBtn.classList.remove('btn-disabled');
     sG();
