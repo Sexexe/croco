@@ -88,7 +88,6 @@ canvas{display:block;position:fixed;top:0;left:0;width:100%;height:100%;z-index:
 <div id="video-overlay"><video id="intro-video" playsinline webkit-playsinline preload="auto"></video></div>
 <div id="cheat-msg"></div><audio id="snd-sea" src="more.mp3" loop preload="auto"></audio>
 <audio id="snd-fire" src="fire.mp3" loop preload="auto"></audio>
-<audio id="snd-crox" src="crox.mp3" preload="auto"></audio>
 <script type="module">
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -197,16 +196,83 @@ function showCheatMessage(msg){const el=getEl('cheat-msg');el.textContent=msg;el
 function setLoadingBackground(){const bg=getEl('loading-bg');if(isMob)bg.style.backgroundImage='url("https://sexexe.github.io/croco/ekran2.jpg")';else bg.style.backgroundImage='url("https://sexexe.github.io/croco/ekran.jpg")';}
 function exitPointerLockSafe(){try{if(document.pointerLockElement)document.exitPointerLock();}catch(e){}}
 let ax=null,_noiseBuffer=null,_masterOutput=null,_delayIn=null;
-let sndSea=null,sndFire=null,sndCrox=null;
-function initEnvSounds(){if(sndSea)return;sndSea=document.getElementById('snd-sea');sndFire=document.getElementById('snd-fire');sndCrox=document.getElementById('snd-crox');if(sndSea){sndSea.volume=0;sndSea.play().catch(()=>{});}if(sndFire){sndFire.volume=0;sndFire.play().catch(()=>{});}}
+let sndSea=null,sndFire=null;
+function initEnvSounds(){if(sndSea)return;sndSea=document.getElementById('snd-sea');sndFire=document.getElementById('snd-fire');if(sndSea){sndSea.volume=0;sndSea.play().catch(()=>{});}if(sndFire){sndFire.volume=0;sndFire.play().catch(()=>{});}}
 function updateEnvSounds(){if(!cam)return;if(!sndSea||!sndFire)initEnvSounds();const px=cam.position.x,pz=cam.position.z;const dc=Math.sqrt(px*px+pz*pz);const landR=getLandRadiusAt(px,pz);const distToShore=Math.abs(dc-landR);const seaVol=Math.max(0,Math.min(1,(25-distToShore)/25));const seaTarget=isMuted?0:seaVol*0.5;if(sndSea)sndSea.volume+=(seaTarget-sndSea.volume)*0.05;const distToHut=Math.sqrt((px-HUT_X)**2+(pz-HUT_Z)**2);const fireVol=Math.max(0,Math.min(1,(14-distToHut)/14));const fireTarget=isMuted?0:fireVol*0.45;if(sndFire)sndFire.volume+=(fireTarget-sndFire.volume)*0.05;}
-/* ===== ЗВУК СМЕРТИ КРОКОДИЛА: crox.mp3, +50% громкости ===== */
-function sfxCroxWithDelay(){
-  if(isMuted)return;
-  if(!sndCrox){sndCrox=document.getElementById('snd-crox');if(!sndCrox){sndCrox=document.createElement('audio');sndCrox.id='snd-crox';sndCrox.src='crox.mp3';sndCrox.preload='auto';document.body.appendChild(sndCrox);}}
-  try{const src=sndCrox.cloneNode(true);src.volume=2.1;const p=src.play();if(p&&p.catch)p.catch(()=>{});}catch(e){}
+/* ===== ЗВУК СМЕРТИ КРОКОДИЛА: crox.mp3, гарантированный запуск ===== */
+let _croxBuffer = null;
+let _croxLoading = false;
+let _croxPool = [];
+const CROX_POOL_SIZE = 4;
+
+function _loadCroxBuffer(){
+  if(_croxBuffer || _croxLoading) return;
+  if(!ax) return;
+  _croxLoading = true;
+  fetch('crox.mp3')
+    .then(r => r.arrayBuffer())
+    .then(buf => ax.decodeAudioData(buf))
+    .then(decoded => { _croxBuffer = decoded; _croxLoading = false; })
+    .catch(() => { _croxLoading = false; });
 }
-function initAudio(){if(ax)return;try{const AC=window.AudioContext||window.webkitAudioContext;ax=new AC();const bufSize=ax.sampleRate*2;_noiseBuffer=ax.createBuffer(1,bufSize,ax.sampleRate);const data=_noiseBuffer.getChannelData(0);for(let i=0;i<bufSize;i++)data[i]=Math.random()*2-1;const comp=ax.createDynamicsCompressor();comp.threshold.value=-15;comp.knee.value=20;comp.ratio.value=12;comp.attack.value=0.001;comp.release.value=0.1;const saturator=ax.createWaveShaper();const curve=new Float32Array(256);for(let i=0;i<256;i++){const x=(i/128)-1;curve[i]=Math.tanh(x*2);}saturator.curve=curve;const limiter=ax.createDynamicsCompressor();limiter.threshold.value=-3;limiter.knee.value=0;limiter.ratio.value=20;limiter.attack.value=0.001;limiter.release.value=0.01;comp.connect(saturator);saturator.connect(limiter);limiter.connect(ax.destination);_masterOutput=comp;_delayIn=ax.createGain();_delayIn.gain.value=1.0;const d1=ax.createDelay(1.0);d1.delayTime.value=0.27;const g1=ax.createGain();g1.gain.value=0.4;const d2=ax.createDelay(1.0);d2.delayTime.value=0.27;const g2=ax.createGain();g2.gain.value=0.4;_delayIn.connect(d1);d1.connect(g1);g1.connect(_masterOutput);g1.connect(d2);d2.connect(g2);g2.connect(_masterOutput);if(ax.state==='suspended'){const resume=()=>{ax.resume();document.removeEventListener('touchstart',resume);document.removeEventListener('click',resume);document.removeEventListener('mousedown',resume)};document.addEventListener('touchstart',resume);document.addEventListener('click',resume);document.addEventListener('mousedown',resume);}}catch(e){}}
+
+function _playCroxViaWebAudio(){
+  if(!ax || !_croxBuffer) return false;
+  if(ax.state === 'suspended') ax.resume().catch(()=>{});
+  try {
+    const src = ax.createBufferSource();
+    src.buffer = _croxBuffer;
+    const gain = ax.createGain();
+    gain.gain.value = 2.1;
+    src.connect(gain);
+    gain.connect(_masterOutput);
+    src.start(0);
+    return true;
+  } catch(e) { return false; }
+}
+
+function _playCroxViaElement(){
+  try {
+    if(_croxPool.length < CROX_POOL_SIZE){
+      for(let i = _croxPool.length; i < CROX_POOL_SIZE; i++){
+        const a = new Audio('crox.mp3');
+        a.preload = 'auto';
+        a.volume = 1.0;
+        _croxPool.push(a);
+      }
+    }
+    let a = _croxPool.find(el => el.paused || el.ended);
+    if(!a) a = _croxPool[0];
+    a.currentTime = 0;
+    a.volume = 1.0;
+    const p = a.play();
+    if(p && p.catch) p.catch(()=>{});
+    return true;
+  } catch(e) { return false; }
+}
+
+function sfxCroxWithDelay(){
+  if(isMuted) return;
+  if(_playCroxViaWebAudio()) return;
+  if(!_croxBuffer) _loadCroxBuffer();
+  _playCroxViaElement();
+}
+
+function preloadCrox(){
+  if(!ax) return;
+  _loadCroxBuffer();
+  if(_croxPool.length === 0){
+    for(let i = 0; i < CROX_POOL_SIZE; i++){
+      const a = new Audio('crox.mp3');
+      a.preload = 'auto';
+      a.volume = 1.0;
+      _croxPool.push(a);
+    }
+  }
+}
+function initAudio(){if(ax)return;try{const AC=window.AudioContext||window.webkitAudioContext;ax=new AC();const bufSize=ax.sampleRate*2;_noiseBuffer=ax.createBuffer(1,bufSize,ax.sampleRate);const data=_noiseBuffer.getChannelData(0);for(let i=0;i<bufSize;i++)data[i]=Math.random()*2-1;const comp=ax.createDynamicsCompressor();comp.threshold.value=-15;comp.knee.value=20;comp.ratio.value=12;comp.attack.value=0.001;comp.release.value=0.1;const saturator=ax.createWaveShaper();const curve=new Float32Array(256);for(let i=0;i<256;i++){const x=(i/128)-1;curve[i]=Math.tanh(x*2);}saturator.curve=curve;const limiter=ax.createDynamicsCompressor();limiter.threshold.value=-3;limiter.knee.value=0;limiter.ratio.value=20;limiter.attack.value=0.001;limiter.release.value=0.01;comp.connect(saturator);saturator.connect(limiter);limiter.connect(ax.destination);_masterOutput=comp;_delayIn=ax.createGain();_delayIn.gain.value=1.0;const d1=ax.createDelay(1.0);d1.delayTime.value=0.27;const g1=ax.createGain();g1.gain.value=0.4;const d2=ax.createDelay(1.0);d2.delayTime.value=0.27;const g2=ax.createGain();g2.gain.value=0.4;_delayIn.connect(d1);d1.connect(g1);g1.connect(_masterOutput);g1.connect(d2);d2.connect(g2);g2.connect(_masterOutput);if(ax.state==='suspended'){const resume=()=>{ax.resume();document.removeEventListener('touchstart',resume);document.removeEventListener('click',resume);document.removeEventListener('mousedown',resume)};document.addEventListener('touchstart',resume);document.addEventListener('click',resume);document.addEventListener('mousedown',resume);}
+preloadCrox();
+}catch(e){}}
 function makeSfxOut(){const out=ax.createGain();out.gain.value=1;out.connect(_masterOutput);if(_delayIn)out.connect(_delayIn);return out;}
 function createAudioElement(url){const a=new Audio();a.loop=true;a.preload='auto';a.src=url;a.setAttribute('playsinline','');if(isIOS)a.setAttribute('x-webkit-airplay','allow');return a}
 /* ================== МУЗЫКА ================== */
@@ -750,9 +816,9 @@ function buildAllMaples() {
 let rockInst = null;
 let rockShoreInst = null;
 let rockUnderwaterInst = null;
-const ROCK_COUNT = 28;
-const ROCK_SHORE_COUNT = 8;
-const ROCK_UNDERWATER_COUNT = 14;
+const ROCK_COUNT = 16;
+const ROCK_SHORE_COUNT = 2;
+const ROCK_UNDERWATER_COUNT = 4;
 const ROCK_COLORS = [0xd8d8d8,0xc8c8c8,0xb8b8b8,0xa8a8a8];
 function buildAllRocks() {
   const baseGeo = new THREE.DodecahedronGeometry(1, 0);
@@ -812,11 +878,11 @@ function buildAllRocks() {
     p.size = s;
   }
   placed.sort((a, b) => a.size - b.size);
-  const toRemove = 10;
+  const toRemove = 6;
   const kept = placed.slice(toRemove);
   const shoreRocks = [];
   const maxSize = kept.length ? kept[kept.length-1].size : 1.0;
-  const hugeSize = maxSize * 3.0;
+  const hugeSize = maxSize * 3.0 * 2.0;
   for (let i = 0; i < ROCK_SHORE_COUNT; i++) {
     const a = Math.random() * Math.PI * 2;
     const edge = beachOuterRadius(a);
@@ -889,9 +955,9 @@ function buildAllRocks() {
     const r = edge + 2 + Math.random() * 13; // 2..15 м от кромки пляжа в море
     const x = Math.cos(a) * r;
     const z = Math.sin(a) * r;
-    const s = (0.6 + Math.random() * 1.6) * 3.0;
+    const s = (0.6 + Math.random() * 1.6) * 3.0 * 2.0;
     // Верх камня торчит из воды: y от 0.25 до 1.4
-    const yPos = -0.6 + Math.random() * 1.0;
+    const yPos = -0.4 + Math.random() * 1.8;
     dummy.position.set(x, yPos, z);
     dummy.rotation.set(
       Math.random() * Math.PI,
@@ -932,10 +998,10 @@ const PALM = {
   FROND_COUNT: 16,
   PITCH_START_A: 0.85, PITCH_START_B: 0.35,
   PITCH_END_A: 0.05, PITCH_END_B: -1.0,
-  FROND_LEN_MIN: 5.5, FROND_LEN_MAX: 7.0,
+  FROND_LEN_MIN: 5.5 * 1.2, FROND_LEN_MAX: 7.0 * 1.2,
   LEAFLET_COUNT: 42,
-  LEAFLET_LEN: 2.8,
-  LEAFLET_W: 0.20,
+  LEAFLET_LEN: 2.8 * 1.2,
+  LEAFLET_W: 0.20 * 1.2,
   RHACHIS_R: 0.014,
   PETIOLES: 90,
   FIBERS: 28,
@@ -1448,6 +1514,7 @@ colaBottles=[];
 resetPools();
 prevDistToHut=999;
 initAudio();
+preloadCrox();
 startMusic();
 initEnvSounds();
 spawnMorningLoot();
@@ -1531,7 +1598,15 @@ let loadProgress=0;const loadBar=getEl('loading-bar');const loadInterval=setInte
 function unlockAudioOnce(){
   if(sndSea){sndSea.volume=0;sndSea.play().catch(()=>{});}
   if(sndFire){sndFire.volume=0;sndFire.play().catch(()=>{});}
-  if(sndCrox){try{sndCrox.volume=0;const p=sndCrox.play();if(p&&p.then){p.then(()=>{sndCrox.pause();sndCrox.currentTime=0;sndCrox.volume=2.1;}).catch(()=>{});}else{sndCrox.pause();sndCrox.currentTime=0;sndCrox.volume=2.1;}}catch(e){}}
+  preloadCrox();
+  if(_croxPool.length){
+    try {
+      _croxPool[0].volume = 0;
+      const p = _croxPool[0].play();
+      if(p && p.then) p.then(()=>{ _croxPool[0].pause(); _croxPool[0].currentTime = 0; _croxPool[0].volume = 1.0; }).catch(()=>{});
+      else { _croxPool[0].pause(); _croxPool[0].currentTime = 0; _croxPool[0].volume = 1.0; }
+    } catch(e){}
+  }
   if(!ax)initAudio();
   if(ax&&ax.state==='suspended')ax.resume().catch(()=>{});
   document.removeEventListener('click',unlockAudioOnce);
