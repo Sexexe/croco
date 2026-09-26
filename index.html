@@ -955,9 +955,9 @@ function buildAllRocks() {
     const r = edge + 2 + Math.random() * 13; // 2..15 м от кромки пляжа в море
     const x = Math.cos(a) * r;
     const z = Math.sin(a) * r;
-    const s = (0.6 + Math.random() * 1.6) * 3.0 * 2.0;
+    const s = (0.6 + Math.random() * 1.6) * 3.0;
     // Верх камня торчит из воды: y от 0.25 до 1.4
-    const yPos = -0.4 + Math.random() * 1.8;
+    const yPos = -0.6 + Math.random() * 1.0;
     dummy.position.set(x, yPos, z);
     dummy.rotation.set(
       Math.random() * Math.PI,
