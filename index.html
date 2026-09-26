@@ -83,7 +83,7 @@ canvas{display:block;position:fixed;top:0;left:0;width:100%;height:100%;z-index:
 <div class="music-btn" id="musicBtn" title="Вкл/Выкл весь звук">🎵</div>
 </div>
 <div id="overlay" class="poster-screen"><div class="loading-background" id="loading-bg"></div><div class="loading-container" id="loading-container"><div class="loading-bar" id="loading-bar"></div></div><div class="cowboy-btn btn-disabled" id="startBtn" role="button" tabindex="0">НАЧАТЬ ОХОТУ</div></div>
-<div id="lose-screen" class="poster-screen"><div class="wanted-poster"><h1 class="main-title">ТЕБЯ СЪЕЛИ</h1><div class="desc" id="lose-desc"></div><div class="cowboy-btn" id="restartBtn" role="button" tabindex="0">🎬 ПОВТОРИТЬ</div><div class="reward-hint">Просмотр рекламы даст +50 золота</div></div></div>
+<div id="lose-screen" class="poster-screen"><div class="wanted-poster"><h1 class="main-title">ТЕБЯ СЪЕЛИ</h1><div class="desc" id="lose-desc"></div><div class="cowboy-btn" id="restartBtn" role="button" tabindex="0">🎬 ПОВТОРИТЬ</div><div class="reward-hint">Просмотр рекламы даст +100 патронов и +1000 золота</div></div></div>
 <div id="mission-success-screen"><div class="mission-bg" id="mission-bg"></div><div class="mission-success-overlay"><div class="play-btn" id="playBtn" role="button" tabindex="0">ИГРАТЬ</div><div class="cheat-hint">Shift + 2: Увеличивает скорость крокодилов в 2 раза<br>Shift + 1: Уменьшает скорость крокодилов в 2 раза</div></div></div>
 <div id="video-overlay"><video id="intro-video" playsinline webkit-playsinline preload="auto"></video></div>
 <div id="cheat-msg"></div><audio id="snd-sea" src="more.mp3" loop preload="auto"></audio>
@@ -153,7 +153,6 @@ const raycaster=new THREE.Raycaster();
 let tvKeys={up:false,down:false,left:false,right:false,enter:false};
 let lastHudTheme=null,lastPhaseHTML=null;
 let fpsFrames=0,fpsTime=performance.now(),lowFpsTime=0,highFpsTime=0,lastOverlayRender=0;
-let lastDayPhaseForAd='morning';
 const TRUNK_MATERIALS=[0x7a5a3a,0x5c3a1e,0x8b5a2b,0x6b4423,0x4a2a15,0x9c6b3f,0x3a2010,0xa0724a,0x54331c,0x7d5233].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:0.9}));
 const _tempVec=new THREE.Vector3(),_tempVec2=new THREE.Vector3(),_tempVec3=new THREE.Vector3();
 const _forwardVec=new THREE.Vector3(),_upVec=new THREE.Vector3(0,1,0);
@@ -174,18 +173,16 @@ function handleVisibilityChange(isHidden){if(isHidden){if(ax&&ax.state==='runnin
 function checkRewardAdReadiness(){if(!isVkEnvironment||!vkBridge)return Promise.resolve(false);return vkBridge.send('VKWebAppCheckNativeAds',{ad_format:'reward'}).then((d)=>{isRewardAdReady=d.result;return d.result;}).catch(()=>{isRewardAdReady=false;return false;});}
 function showRewardAd(){return new Promise((resolve)=>{if(!isVkEnvironment||!vkBridge){resolve({success:false,reason:'no_bridge'});return;}checkRewardAdReadiness().then((ready)=>{if(!ready){resolve({success:false,reason:'not_ready'});return;}vkBridge.send('VKWebAppShowNativeAds',{ad_format:'reward'}).then((d)=>{resolve(d&&d.result?{success:true}:{success:false,reason:'no_result'});}).catch(()=>{resolve({success:false,reason:'error'});});});});}
 let adInProgress=false,lastInterstitialTime=0,adTimeoutHandle=null;
-const INTERSTITIAL_COOLDOWN=60000;
+const INTERSTITIAL_COOLDOWN=30000;
 function restoreMusicAfterAd(){
   if(isMuted)return;
   if(MusicManager.ready)MusicManager.resumeAll();
   if(ax&&ax.state==='suspended'){ax.resume().catch(()=>{});}
   if(cam)updateMusicVolume();
 }
-/* ===== ИЗМЕНЕНИЕ 1: межстраничная реклама теперь работает и на ПК, и на мобильном ===== */
+/* ===== Межстраничная реклама — теперь вызывается ТОЛЬКО при запуске игры ===== */
 function showInterstitialAd(){
   if(adInProgress)return;
-  const now=performance.now();
-  if(now-lastInterstitialTime<INTERSTITIAL_COOLDOWN)return;
   adInProgress=true;
   if(adTimeoutHandle)clearTimeout(adTimeoutHandle);
   adTimeoutHandle=setTimeout(()=>{
@@ -193,27 +190,13 @@ function showInterstitialAd(){
     adTimeoutHandle=null;
     restoreMusicAfterAd();
   },15000);
-  // Если VK Bridge доступен — показываем нативную рекламу VK
   if(isVkEnvironment&&vkBridge){
-    vkBridge.send('VKWebAppCheckNativeAds',{ad_format:'interstitial'})
-      .then((data)=>{
-        if(!data||!data.result){
-          adInProgress=false;
-          if(adTimeoutHandle){clearTimeout(adTimeoutHandle);adTimeoutHandle=null;}
-          return;
-        }
-        return vkBridge.send('VKWebAppShowNativeAds',{ad_format:'interstitial'})
-          .then(()=>{
-            lastInterstitialTime=performance.now();
-            adInProgress=false;
-            if(adTimeoutHandle){clearTimeout(adTimeoutHandle);adTimeoutHandle=null;}
-            restoreMusicAfterAd();
-          })
-          .catch(()=>{
-            adInProgress=false;
-            if(adTimeoutHandle){clearTimeout(adTimeoutHandle);adTimeoutHandle=null;}
-            restoreMusicAfterAd();
-          });
+    vkBridge.send('VKWebAppShowNativeAds',{ad_format:'interstitial'})
+      .then(()=>{
+        lastInterstitialTime=performance.now();
+        adInProgress=false;
+        if(adTimeoutHandle){clearTimeout(adTimeoutHandle);adTimeoutHandle=null;}
+        restoreMusicAfterAd();
       })
       .catch(()=>{
         adInProgress=false;
@@ -221,14 +204,8 @@ function showInterstitialAd(){
         restoreMusicAfterAd();
       });
   } else {
-    // На ПК/в браузере без VK — просто имитируем паузу на 1 секунду,
-    // чтобы игровой цикл корректно обработал переход и музыка восстановилась.
-    setTimeout(()=>{
-      lastInterstitialTime=performance.now();
-      adInProgress=false;
-      if(adTimeoutHandle){clearTimeout(adTimeoutHandle);adTimeoutHandle=null;}
-      restoreMusicAfterAd();
-    },1000);
+    adInProgress=false;
+    if(adTimeoutHandle){clearTimeout(adTimeoutHandle);adTimeoutHandle=null;}
   }
 }
 let lastTapticTime=0;
@@ -328,7 +305,6 @@ const MusicManager = {
     if (this.mode === 'night' && !isMuted) this.nightEl.play().catch(()=>{});
   },
 
-  /* ===== ИЗМЕНЕНИЕ 2: ночная музыка в 2 раза тише ===== */
   update(dt) {
     if (!this.ready) return;
     const step = this.fadeSpeed * dt;
@@ -339,7 +315,6 @@ const MusicManager = {
     if (this.nightVol < 0.01 && this.targetNightVol === 0 && !this.nightEl.paused) this.nightEl.pause();
 
     const pos = getMusicPositionFactor();
-    // Ночная громкость снижена в 2 раза (0.5)
     this.dayEl.volume   = isMuted ? 0 : Math.max(0, Math.min(1, this.dayVol   * pos));
     this.nightEl.volume = isMuted ? 0 : Math.max(0, Math.min(1, this.nightVol * pos * 0.5));
   }
@@ -728,7 +703,7 @@ function initEffectPools(){initBulletPool();initParticlePool();initSmokePool();i
 function resetPools(){for(let i=0;i<bulletPool.length;i++){bulletPool[i].userData.active=false;bulletPool[i].visible=false;}for(let i=0;i<particlePool.length;i++){particlePool[i].userData.active=false;particlePool[i].visible=false;}for(let i=0;i<smokePool.length;i++){smokePool[i].active=false;}for(let i=0;i<casingPool.length;i++){casingPool[i].active=false;}if(bulletInstanced)updateBulletInstances();if(particleInstanced)updateParticleInstances();if(smokeInstanced)updateSmokeInstances(0);if(casingInstanced)updateCasingInstances(0);}
 function applyVoodooArmProportions(){if(!voodooParts)return;if(voodooParts.lArm)voodooParts.lArm.scale.set(1.05,0.95,1.05);if(voodooParts.rArm)voodooParts.rArm.scale.set(1.05,0.95,1.05);}
 /* ============================================================
-   ЛЕС (клёны) — 5 комбинаций × 3 цвета в кроне, высота × 1.5
+   ЛЕС (клёны)
    ============================================================ */
 let mapleTrunkInst=null;
 let mapleTrunkGeo=null;
@@ -903,8 +878,6 @@ function buildAllMaples() {
     inst.instanceMatrix.needsUpdate = true;
     scn.add(inst);
   });
-
-  console.log(`Клёнов: ${placed.length}, комбинаций: 5, draw calls: ${1 + leafInsts.length}`);
 }
 
 /* ============ КАМНИ (InstancedMesh) ============ */
@@ -1012,7 +985,6 @@ function buildAllRocks() {
   rockInst.instanceMatrix.needsUpdate = true;
   if (rockInst.instanceColor) rockInst.instanceColor.needsUpdate = true;
   scn.add(rockInst);
-  console.log(`Камней на земле: ${kept.length}, draw calls: 1`);
 
   rockShoreInst = new THREE.InstancedMesh(baseGeo, rockMat, ROCK_SHORE_COUNT);
   rockShoreInst.castShadow = false;
@@ -1039,9 +1011,8 @@ function buildAllRocks() {
   rockShoreInst.instanceMatrix.needsUpdate = true;
   if (rockShoreInst.instanceColor) rockShoreInst.instanceColor.needsUpdate = true;
   scn.add(rockShoreInst);
-  console.log(`Камней в воде: ${shoreRocks.length}, draw calls: 1`);
 }
-/* ============ ПАЛЬМЫ — ствол ×1.3, орехи ×2 ============ */
+/* ============ ПАЛЬМЫ ============ */
 const PALM_COUNT = 40;
 const PALM = {
   TRUNK_SEGS: 30,
@@ -1222,7 +1193,6 @@ function initPalmMaterials(){
   PALM_MAT_PETIOLE=new THREE.MeshStandardMaterial({map:makePalmPetioleTexture(),roughness:0.85,metalness:0.0,color:0xffffff});
   PALM_MAT_RACHIS=new THREE.MeshStandardMaterial({color:0x6a5a2a,roughness:0.75});
   PALM_MAT_FIBERS=[0,1,2,3].map(i=>new THREE.MeshStandardMaterial({map:makePalmFiberTexture(i),alphaTest:0.4,side:THREE.DoubleSide,roughness:1.0,metalness:0.0,color:0xffffff}));
-  // Один материал на все листья — различия через instanceColor
   PALM_MAT_LEAVES=new THREE.MeshStandardMaterial({map:makePalmLeafTexture(PALM_LEAF_VARIANTS[4]),alphaTest:0.2,side:THREE.DoubleSide,roughness:0.55,metalness:0.0,color:0xffffff});
   PALM_MAT_COCONUT=new THREE.MeshStandardMaterial({color:0x5a3a18,roughness:0.85,metalness:0.0});
   const geo=new THREE.PlaneGeometry(PALM.LEAFLET_W,PALM.LEAFLET_LEN,2,4);
@@ -1374,7 +1344,6 @@ function buildPalmWorld(){
   const rachisGeo=new THREE.CylinderGeometry(1,1,1,5,1);
   const rachisInst=new THREE.InstancedMesh(rachisGeo,PALM_MAT_RACHIS,totalRachis*12);
   rachisInst.castShadow=false;rachisInst.frustumCulled=true;
-  // Один InstancedMesh для всех листьев + instanceColor
   const leafInst = new THREE.InstancedMesh(
     PALM_GEO_LEAFLET,
     PALM_MAT_LEAVES,
@@ -1520,7 +1489,7 @@ function sM(id,t){const e=getEl(id);if(!e)return;e.innerHTML=t;e.style.opacity=1
 function updateMoveBtn(){const btn=getEl('moveBtn');if(!btn)return;if(isStopped){btn.className='move-btn go';btn.innerText='ШАГАТЬ';}else{btn.className='move-btn stop';btn.innerText='СТОЯТЬ';}}
 function updateCamRot(){cam.rotation.order='YXZ';cam.rotation.y=yaw;cam.rotation.x=pitch;cam.rotation.z=0;}
 function updatePickups(d){if(!ia||pl.d)return;const now=performance.now();for(let i=cr.length-1;i>=0;i--){const c=cr[i];if(!c||c.userData.c)continue;const distSq=cam.position.distanceToSquared(c.position);if(distSq<4){c.userData.c=true;c.visible=false;if(c.userData.t==='gold'){pl.g+=c.userData.ga*GOLD_MULT;sM('pickup-msg','+'+(c.userData.ga*GOLD_MULT)+' <span class="scl-gold">ЗОЛОТО</span>');sfxGold();saveGoldProgressThrottled();}else{pl.a+=c.userData.ga;sM('pickup-msg','+'+c.userData.ga+' <span class="scl-ammo">ПАТРОНЫ</span>');sfxAmmo();}uH();}}for(let i=colaBottles.length-1;i>=0;i--){const b=colaBottles[i];if(!b||b.userData.c)continue;const distSq=cam.position.distanceToSquared(b.position);if(distSq<400){b.rotation.y+=d*0.8;b.position.y=Math.sin(now*0.002)*0.1;}if(distSq<4){b.userData.c=true;b.visible=false;const healAmount=b.userData.healAmount;const oldHp=pl.hp;pl.hp=Math.min(100,pl.hp+healAmount);const actualHeal=Math.floor(pl.hp-oldHp);sM('pickup-msg','+'+actualHeal+'% <span class="scl-heal">CROCO-COLA</span>');sfxDrink();vkTapticFeedback('medium');scn.remove(b);colaBottles.splice(i,1);uH();}}}
-function uDN(d){gt+=d/C.dd;if(gt>=1){gt-=1;currentDay++;const dayDisplay=getEl('day-display');if(dayDisplay)dayDisplay.innerText='День '+currentDay;lootSpawnedToday=false;colaSpawnedToday=false;}const phase=getTimePhase();const curPhaseForAd=phase.morning?'morning':(phase.day?'day':(phase.evening?'evening':'night'));if(lastDayPhaseForAd==='day'&&curPhaseForAd==='evening')showInterstitialAd();lastDayPhaseForAd=curPhaseForAd;if(phase.morning&&morningStartTime<0)morningStartTime=performance.now();if(!phase.morning)morningStartTime=-1;if(phase.morning&&!lootSpawnedToday){spawnMorningLoot();lootSpawnedToday=true;}if(phase.morning&&!colaSpawnedToday){spawnCrocoCola();colaSpawnedToday=true;}if(phase.night&&!coinsSpawnedThisNight){spawnNightCoins();coinsSpawnedThisNight=true;}if(phase.morning&&coinsSpawnedThisNight){for(let i=cr.length-1;i>=0;i--){if(cr[i].userData&&cr[i].userData.isNightCoin){scn.remove(cr[i]);cr.splice(i,1);}}coinsSpawnedThisNight=false;}if(phase.night&&MusicManager.mode!=='night')MusicManager.setMode('night');else if(!phase.night&&MusicManager.mode!=='day')MusicManager.setMode('day');const sky=evalSky(gt);sky.sunPos.copy(computeSunDir(gt));_moonDirWorld.copy(computeMoonDir(gt));
+function uDN(d){gt+=d/C.dd;if(gt>=1){gt-=1;currentDay++;const dayDisplay=getEl('day-display');if(dayDisplay)dayDisplay.innerText='День '+currentDay;lootSpawnedToday=false;colaSpawnedToday=false;}const phase=getTimePhase();if(phase.morning&&morningStartTime<0)morningStartTime=performance.now();if(!phase.morning)morningStartTime=-1;if(phase.morning&&!lootSpawnedToday){spawnMorningLoot();lootSpawnedToday=true;}if(phase.morning&&!colaSpawnedToday){spawnCrocoCola();colaSpawnedToday=true;}if(phase.night&&!coinsSpawnedThisNight){spawnNightCoins();coinsSpawnedThisNight=true;}if(phase.morning&&coinsSpawnedThisNight){for(let i=cr.length-1;i>=0;i--){if(cr[i].userData&&cr[i].userData.isNightCoin){scn.remove(cr[i]);cr.splice(i,1);}}coinsSpawnedThisNight=false;}if(phase.night&&MusicManager.mode!=='night')MusicManager.setMode('night');else if(!phase.night&&MusicManager.mode!=='day')MusicManager.setMode('day');const sky=evalSky(gt);sky.sunPos.copy(computeSunDir(gt));_moonDirWorld.copy(computeMoonDir(gt));
 if(sl){sl.position.copy(sky.sunPos);sl.color.copy(sky.sunCol);sl.intensity=sky.si;sl.castShadow=!phase.night;if(phase.evening){const t=(gt-45/180)/(45/180);_skyTmpC.setHex(0xff66b2).multiplyScalar(1.15);sl.color.setHex(0xffffff).lerp(_skyTmpC,0.35+0.55*Math.sin(t*Math.PI));sl.intensity=sky.si+Math.sin(t*Math.PI)*0.6;}if(sl.shadow){sl.shadow.intensity=sky.sh;sl.shadow.bias=sky.sBias;sl.shadow.normalBias=sky.sNBias;if(sl.shadow.radius!==undefined)sl.shadow.radius=sky.sRad;}}
 if(ml){
   const moonUp=_moonDirWorld.y>0;
@@ -1544,7 +1513,6 @@ if(ml){
 if(al){al.color.copy(sky.amb);al.intensity=sky.ai;}if(rnd)rnd.toneMappingExposure=sky.exp;if(scn.fog){scn.fog.color.copy(sky.fog);scn.fog.density=sky.fd*(isMob?2.2:1.8);}
 const sv=sky.stars;const starBrightness=1.0+0.25*Math.max(0,(sv-0.9)/0.1);if(starMat){starMat.uniforms.uOpacity.value=sv;starMat.uniforms.uBrightness.value=starBrightness;if(starPts)starPts.visible=sv>0.02;}if(bgStarsMat){bgStarsMat.opacity=sv*0.55*starBrightness;if(bgStars)bgStars.visible=sv>0.02;}const theme=phase.night?'night':(phase.evening?'evening':'day');if(theme!==lastHudTheme){if(phase.night){document.body.style.setProperty('--hud-bg','linear-gradient(to bottom, rgba(30,40,60,.92), rgba(20,30,50,.92))');document.body.style.setProperty('--hud-border','#4a5a7b');}else if(phase.evening){document.body.style.setProperty('--hud-bg','linear-gradient(to bottom, rgba(200,150,100,.92), rgba(180,120,80,.92))');document.body.style.setProperty('--hud-border','#8b4a2b');}else{document.body.style.setProperty('--hud-bg','linear-gradient(to bottom,rgba(244,228,188,.92),rgba(232,213,163,.92))');document.body.style.setProperty('--hud-border','#8b5a2b');}lastHudTheme=theme;}let pn;if(phase.morning)pn='☀️ <span class="scl-time">УТРО</span>';else if(phase.day)pn='☀️ <span class="scl-time">ДЕНЬ</span>';else if(phase.evening)pn='🌇 <span class="scl-time">ВЕЧЕР</span>';else pn='🌙 <span class="scl-time">НОЧЬ</span>';if(pn!==lastPhaseHTML){const timeDisplay=getEl('time-display');if(timeDisplay)timeDisplay.innerHTML=pn;lastPhaseHTML=pn;}updateTerrainAndWater(d);}
 function upd(d){if(pl.d)return;const tvLookSpeed=2.0;if(tvKeys.left)yaw+=tvLookSpeed*d;if(tvKeys.right)yaw-=tvLookSpeed*d;if(tvKeys.up)pitch+=tvLookSpeed*d;if(tvKeys.down)pitch-=tvLookSpeed*d;if(tvKeys.left||tvKeys.right||tvKeys.up||tvKeys.down){pitch=Math.max(-Math.PI/2+0.1,Math.min(Math.PI/2-0.1,pitch));updateCamRot();}if(tvKeys.enter)fireCenter();uDN(d);updateAtmosphere(d);updateAmbient(d);updateFlies(d);updateVoodoo(d,gt);updateHutAndFire(d);updateEnvSounds();updatePickups(d);updateGun(d);updateMusicVolume();checkBurstState(); if(!isStopped){_forwardVec.set(0,0,-1).applyAxisAngle(_upVec,yaw);cam.position.addScaledVector(_forwardVec,C.mv*d);}cam.position.y=2+Math.sin(performance.now()*0.003)*0.005;if(shakeIntensity>0.001){cam.position.x+=(Math.random()-0.5)*shakeIntensity;cam.position.y+=(Math.random()-0.5)*shakeIntensity;shakeIntensity*=0.85;}else{shakeIntensity=0;}while(corpses.length>MAX_CORPSES){const old=corpses.shift();if(old.userData&&old.userData.flies)scn.remove(old.userData.flies);scn.remove(old);}for(let i=corpses.length-1;i>=0;i--){if(currentDay>corpses[i].userData.spawnDay){if(corpses[i].userData.flies)scn.remove(corpses[i].userData.flies);scn.remove(corpses[i]);corpses.splice(i,1);}}const phase=getTimePhase();if(phase.night&&en.length<3)sCr();if(!phase.night&&en.length>0){en.forEach(e=>scn.remove(e.mesh));en=[];}if((gridFrameCount++&1)===0)buildCrocGrid();const wallR=4.7*1.5;const doorOffset=wallR-0.12;const doorWX=HUT_X-doorOffset;const doorWZ=HUT_Z;const dxHut=cam.position.x-HUT_X;const dzHut=cam.position.z-HUT_Z;const distToHut=Math.sqrt(dxHut*dxHut+dzHut*dzHut);const distToDoor=Math.sqrt((cam.position.x-doorWX)**2+(cam.position.z-doorWZ)**2);if(prevDistToHut>=wallR&&distToHut<wallR&&distToDoor<3.5)sfxDoor();else if(prevDistToHut<wallR&&distToHut>=wallR&&distToDoor<3.5)sfxDoor();prevDistToHut=distToHut;if(distToHut>wallR-0.6&&distToHut<wallR+1.6){if(distToDoor>3.5){const angle=Math.atan2(dzHut,dxHut);if(distToHut<wallR){cam.position.x=HUT_X+Math.cos(angle)*(wallR-0.6);cam.position.z=HUT_Z+Math.sin(angle)*(wallR-0.6);}else{cam.position.x=HUT_X+Math.cos(angle)*(wallR+1.6);cam.position.z=HUT_Z+Math.sin(angle)*(wallR+1.6);}}}const dc=Math.sqrt(cam.position.x*cam.position.x+cam.position.z*cam.position.z);const landR=getLandRadiusAt(cam.position.x,cam.position.z);if(dc>landR-1.2){const a=Math.atan2(cam.position.z,cam.position.x);cam.position.x=Math.cos(a)*(landR-1.2);cam.position.z=Math.sin(a)*(landR-1.2);}
-/* Тени солнца следуют за игроком каждый кадр */
 if(sl.shadow){
   sl.shadow.camera.position.x = cam.position.x;
   sl.shadow.camera.position.z = cam.position.z;
@@ -1557,11 +1525,10 @@ const tsNow=performance.now()*0.001;en.forEach(e=>{e.wp+=d*e.sp;e.lg.forEach((l,
 function showLoseUI(){const desc=getEl('lose-desc');if(desc)desc.innerHTML='<span class="scl-gold">ЗОЛОТО</span>: '+pl.g+'<br>Крокодилы выиграли.';const loseScreen=getEl('lose-screen');if(loseScreen)loseScreen.style.display='flex';exitPointerLockSafe();}
 function showSuccessUI(){const missionScreen=getEl('mission-success-screen');const missionBg=getEl('mission-bg');const playBtn=getEl('playBtn');if(missionBg){if(isMob)missionBg.style.backgroundImage='url("https://sexexe.github.io/croco/ekran2F.jpg")';else missionBg.style.backgroundImage='url("https://sexexe.github.io/croco/ekranF.jpg")';}if(playBtn)playBtn.classList.remove('btn-disabled');if(missionScreen)missionScreen.style.display='block';}
 function showMissionSuccess(){stopMusic();saveGoldProgress();showSuccessUI();exitPointerLockSafe();}
-/* ===== ИЗМЕНЕНИЕ 3: скорость крокодилов растёт при непрерывной игре нескольких миссий ===== */
 function nextMission(){missionLevel++;crocodileSpeedMultiplier*=2.0;saveGoldProgress();const missionScreen=getEl('mission-success-screen');if(missionScreen)missionScreen.style.display='none';stopMusic();sG();}
 function returnToMenu(){ia=false;pl.d=true;isLeftMouseDown=false;isRightMouseDown=false;isTwoFingersTouching=false;stopBurst();MusicManager.pauseAll();if(sndSea)sndSea.volume=0;
 if(sndFire)sndFire.volume=0;if(ax)ax.suspend();const overlay=getEl('overlay');const loseScreen=getEl('lose-screen');const missionScreen=getEl('mission-success-screen');if(overlay)overlay.style.display='flex';if(loseScreen)loseScreen.style.display='none';if(missionScreen)missionScreen.style.display='none';const startBtn=getEl('startBtn');if(startBtn){startBtn.classList.remove('btn-disabled');startBtn.innerText='НАЧАТЬ ОХОТУ';}const loadBar=getEl('loading-bar');if(loadBar)loadBar.style.width='0%';let loadProgress=0;const loadInterval=setInterval(()=>{loadProgress+=Math.random()*15+5;if(loadProgress>=100){loadProgress=100;clearInterval(loadInterval);if(startBtn)startBtn.classList.remove('btn-disabled');}if(loadBar)loadBar.style.width=loadProgress+'%';},30);exitPointerLockSafe();}
-function sG(){if(ia&&!pl.d)return;const overlay=getEl('overlay');const loseScreen=getEl('lose-screen');const missionScreen=getEl('mission-success-screen');if(overlay)overlay.style.display='none';if(loseScreen)loseScreen.style.display='none';if(missionScreen)missionScreen.style.display='none';ia=true;pl.hp=100;pl.a=50;pl.d=false;killed=0;isStopped=false;yaw=0;pitch=0;gt=0;currentDay=1;lastLootDay=-1;lootSpawnedToday=false;colaSpawnedToday=false;coinsSpawnedThisNight=false;morningStartTime=performance.now();lastDayPhaseForAd='morning';isLeftMouseDown=false;isRightMouseDown=false;isTwoFingersTouching=false;stopBurst();stopMusic();gunRecoil=0;gunRecoilVel=0;corpses.forEach(c=>{if(c.userData&&c.userData.flies)scn.remove(c.userData.flies);scn.remove(c);});corpses=[];cam.position.set(0,2,15);updateCamRot();updateMoveBtn();en.forEach(e=>scn.remove(e.mesh));en=[];db.forEach(b=>scn.remove(b));db=[];cr.forEach(c=>scn.remove(c));cr=[];colaBottles.forEach(b=>scn.remove(b));colaBottles=[];en.forEach(e=>scn.remove(e.mesh));
+function sG(){if(ia&&!pl.d)return;const overlay=getEl('overlay');const loseScreen=getEl('lose-screen');const missionScreen=getEl('mission-success-screen');if(overlay)overlay.style.display='none';if(loseScreen)loseScreen.style.display='none';if(missionScreen)missionScreen.style.display='none';ia=true;pl.hp=100;pl.a=50;pl.d=false;killed=0;isStopped=false;yaw=0;pitch=0;gt=0;currentDay=1;lastLootDay=-1;lootSpawnedToday=false;colaSpawnedToday=false;coinsSpawnedThisNight=false;morningStartTime=performance.now();isLeftMouseDown=false;isRightMouseDown=false;isTwoFingersTouching=false;stopBurst();stopMusic();gunRecoil=0;gunRecoilVel=0;corpses.forEach(c=>{if(c.userData&&c.userData.flies)scn.remove(c.userData.flies);scn.remove(c);});corpses=[];cam.position.set(0,2,15);updateCamRot();updateMoveBtn();en.forEach(e=>scn.remove(e.mesh));en=[];db.forEach(b=>scn.remove(b));db=[];cr.forEach(c=>scn.remove(c));cr=[];colaBottles.forEach(b=>scn.remove(b));colaBottles=[];en.forEach(e=>scn.remove(e.mesh));
 en=[];
 db.forEach(b=>scn.remove(b));
 db=[];
@@ -1581,14 +1548,15 @@ if(!isMob&&!localStorage.getItem('croc_hunter_tutorial_shown')){
   localStorage.setItem('croc_hunter_tutorial_shown','true');
 }
 loadGoldProgress().then(saved=>{if(saved&&typeof saved.gold==='number'){pl.g=saved.gold;}else{pl.g=0;}
-/* ===== ИЗМЕНЕНИЕ 4: при каждом новом заходе в игру скорость снова 1× ===== */
 missionLevel=1;crocodileSpeedMultiplier=1.0;
 uH();});const dayDisplay=getEl('day-display');if(dayDisplay)dayDisplay.innerText='День 1';const killDisplay=getEl('kill-display');if(killDisplay)killDisplay.innerText='0/'+totalKills;if(!isMob&&document.body.requestPointerLock){
   try{
     const p=document.body.requestPointerLock();
     if(p&&p.catch)p.catch(()=>{});
   }catch(e){}
-}}
+}
+/* ===== Межстраничная реклама сразу после запуска игры ===== */
+showInterstitialAd();}
 window.sG=sG;
 function onR(){cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();rnd.setPixelRatio(currentPixelRatio);rnd.setSize(innerWidth,innerHeight);}
 function anim(){requestAnimationFrame(anim);const t=performance.now();const d=Math.min((t-pt)/1000,0.1);pt=t;const overlayEl=getEl('overlay');const loseEl=getEl('lose-screen');const missionEl=getEl('mission-success-screen');const menuVisible=(overlayEl&&overlayEl.style.display!=='none')||(loseEl&&loseEl.style.display==='flex')||(missionEl&&missionEl.style.display==='block');if(menuVisible){if(t-lastOverlayRender<100)return;lastOverlayRender=t;}fpsFrames++;if(t-fpsTime>=1000){const fps=fpsFrames*1000/(t-fpsTime);fpsFrames=0;fpsTime=t;if(ia&&!pl.d&&!menuVisible){if(fps<45){lowFpsTime+=1000;highFpsTime=0;}else if(fps>57){highFpsTime+=1000;lowFpsTime=0;}else{lowFpsTime=0;highFpsTime=0;}if(lowFpsTime>=2000&&currentPixelRatio>MIN_PIXEL_RATIO){currentPixelRatio=Math.max(MIN_PIXEL_RATIO,currentPixelRatio-0.15);rnd.setPixelRatio(currentPixelRatio);rnd.setSize(innerWidth,innerHeight);lowFpsTime=0;}if(highFpsTime>=4000&&currentPixelRatio<basePixelRatio){currentPixelRatio=Math.min(basePixelRatio,currentPixelRatio+0.1);rnd.setPixelRatio(currentPixelRatio);rnd.setSize(innerWidth,innerHeight);highFpsTime=0;}}else{lowFpsTime=0;highFpsTime=0;}}if(ia&&!pl.d)upd(d);renderScene();}
@@ -1607,7 +1575,35 @@ ml=new THREE.DirectionalLight(0xaaccff,0);ml.position.set(-50,60,-30);ml.castSha
 scn.fog=new THREE.FogExp2(0x0a1525,0.028);_moonDirWorld.copy(computeMoonDir(0));scn.add(cam);createAtmosphere();createTerrainAndWater();buildPalmWorld();buildAllMaples();buildAllRocks();createAKRifle();createVoodooLady();createHut();initEffectPools();initMuzzleFlash();const moveBtn=getEl('moveBtn');const musicBtn=getEl('musicBtn');const menuBtn=getEl('menuBtn');if(musicBtn){musicBtn.addEventListener('click',e=>{e.stopPropagation();toggleMute();});}if(menuBtn){menuBtn.addEventListener('click',e=>{e.stopPropagation();returnToMenu();});}
 if(!globalThis.__crocKeysBound){globalThis.__crocKeysBound=true;document.addEventListener('keydown',e=>{if(e.code==='ArrowUp')tvKeys.up=true;else if(e.code==='ArrowDown')tvKeys.down=true;else if(e.code==='ArrowLeft')tvKeys.left=true;else if(e.code==='ArrowRight')tvKeys.right=true;else if(e.code==='Enter')tvKeys.enter=true;if(e.code==='Space'&&ia&&!pl.d){e.preventDefault();isStopped=!isStopped;updateMoveBtn();}if(e.shiftKey&&e.code==='Digit2'){crocodileSpeedMultiplier*=2.0;showCheatMessage(`⚡ СКОРОСТЬ КРОКОДИЛОВ x2! (${crocodileSpeedMultiplier.toFixed(2)})`);en.forEach(c=>{if(c.sp)c.sp*=2.0;});}if(e.shiftKey&&e.code==='Digit1'){crocodileSpeedMultiplier/=2.0;showCheatMessage(`🐌 СКОРОСТЬ КРОКОДИЛОВ /2! (${crocodileSpeedMultiplier.toFixed(2)})`);en.forEach(c=>{if(c.sp)c.sp/=2.0;});}if(e.code==='AudioVolumeUp'||e.keyCode===24){if(e.cancelable)e.preventDefault();crocodileSpeedMultiplier*=2.0;showCheatMessage(`⚡ СКОРОСТЬ КРОКОДИЛОВ x2! (${crocodileSpeedMultiplier.toFixed(2)})`);en.forEach(c=>{if(c.sp)c.sp*=2.0;});}else if(e.code==='AudioVolumeDown'||e.keyCode===25){if(e.cancelable)e.preventDefault();crocodileSpeedMultiplier/=2.0;showCheatMessage(`🐌 СКОРОСТЬ КРОКОДИЛОВ /2! (${crocodileSpeedMultiplier.toFixed(2)})`);en.forEach(c=>{if(c.sp)c.sp/=2.0;});}});document.addEventListener('keyup',e=>{if(e.code==='ArrowUp')tvKeys.up=false;else if(e.code==='ArrowDown')tvKeys.down=false;else if(e.code==='ArrowLeft')tvKeys.left=false;else if(e.code==='ArrowRight')tvKeys.right=false;else if(e.code==='Enter')tvKeys.enter=false;});}
 if(isMob){if(moveBtn){moveBtn.style.display='flex';moveBtn.addEventListener('touchend',e=>{e.preventDefault();e.stopPropagation();isStopped=!isStopped;updateMoveBtn();});moveBtn.addEventListener('click',e=>{e.stopPropagation();isStopped=!isStopped;updateMoveBtn();});}document.addEventListener('touchstart',e=>{if(!ia||pl.d)return;const target=e.target;if(target&&target.closest&&(target.closest('.cowboy-btn')||target.closest('.move-btn')||target.closest('.music-btn')||target.closest('.menu-btn')||target.closest('.play-btn')))return;if(e.touches.length>=2){isTwoFingersTouching=true;isDragging=false;checkBurstState();return;}touchStartX=e.touches[0].clientX;touchStartY=e.touches[0].clientY;isDragging=false;},{passive:false});document.addEventListener('touchmove',e=>{if(!ia||pl.d)return;if(isTwoFingersTouching){if(e.touches.length<2){isTwoFingersTouching=false;checkBurstState();}return;}e.preventDefault();const dx=e.touches[0].clientX-touchStartX;const dy=e.touches[0].clientY-touchStartY;if(Math.abs(dx)>5||Math.abs(dy)>5)isDragging=true;if(isDragging){yaw-=dx*0.005;pitch-=dy*0.005;pitch=Math.max(-Math.PI/2+0.1,Math.min(Math.PI/2-0.1,pitch));updateCamRot();touchStartX=e.touches[0].clientX;touchStartY=e.touches[0].clientY;}},{passive:false});document.addEventListener('touchend',e=>{if(!ia||pl.d)return;if(isTwoFingersTouching){if(e.touches.length<2){isTwoFingersTouching=false;checkBurstState();}return;}if(!isDragging)fireCenter();},{passive:false});document.addEventListener('touchcancel',()=>{isTwoFingersTouching=false;checkBurstState();},{passive:false});}else{if(moveBtn)moveBtn.style.display='none';document.addEventListener('mousedown',e=>{if(!ia||pl.d)return;if(e.button===0){isLeftMouseDown=true;checkBurstState();}else if(e.button===2){isRightMouseDown=true;isStopped=!isStopped;updateMoveBtn();}});document.addEventListener('mouseup',e=>{if(e.button===0){isLeftMouseDown=false;checkBurstState();}else if(e.button===2){isRightMouseDown=false;checkBurstState();}});document.addEventListener('contextmenu',e=>e.preventDefault());document.addEventListener('mousemove',e=>{if(document.pointerLockElement===document.body){yaw-=e.movementX*0.002;pitch-=e.movementY*0.002;pitch=Math.max(-Math.PI/2+0.1,Math.min(Math.PI/2-0.1,pitch));updateCamRot();}});document.addEventListener('click',e=>{if(!ia||pl.d)return;const target=e.target;if(target&&target.closest&&(target.closest('.cowboy-btn')||target.closest('.move-btn')||target.closest('.music-btn')||target.closest('.menu-btn')||target.closest('.play-btn')))return;if(document.body.requestPointerLock)document.body.requestPointerLock();});window.addEventListener('blur',()=>{isLeftMouseDown=false;isRightMouseDown=false;checkBurstState();});}
-addEventListener('resize',onR);const startBtnMain=getEl('startBtn');const doStart=()=>{if(starting)return;starting=true;const videoOverlay=getEl('video-overlay');const video=getEl('intro-video');if(!videoOverlay||!video){sG();starting=false;return;}videoOverlay.style.display='block';video.src='https://sexexe.github.io/croco/0716.mp4';let videoDone=false;const startGameAfterVideo=()=>{if(videoDone)return;videoDone=true;video.pause();videoOverlay.style.display='none';video.removeAttribute('src');video.load();sG();starting=false;};video.onended=startGameAfterVideo;video.onerror=startGameAfterVideo;video.onclick=startGameAfterVideo;video.play().catch(()=>{startGameAfterVideo();});};if(startBtnMain){startBtnMain.addEventListener('click',e=>{if(e.cancelable)e.preventDefault();doStart();});startBtnMain.addEventListener('touchend',e=>{if(e.cancelable)e.preventDefault();doStart();});}const playBtn=getEl('playBtn');const doPlay=()=>{if(missionChanging)return;missionChanging=true;stopMusic();nextMission();missionChanging=false;};if(playBtn){playBtn.addEventListener('click',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doPlay();});playBtn.addEventListener('touchend',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doPlay();});}const restartBtn=getEl('restartBtn');const doRestart=()=>{if(restarting)return;restarting=true;restartBtn.classList.add('btn-disabled');showRewardAd().then(result=>{restarting=false;restartBtn.classList.remove('btn-disabled');if(result.success){loadGoldProgress().then(saved=>{const currentGold=(saved&&typeof saved.gold==='number')?saved.gold:0;const bonusData={gold:currentGold+50,missionLevel:1};const data=JSON.stringify(bonusData);if(isVkEnvironment&&vkBridge){vkBridge.send('VKWebAppStorageSet',{key:'croc_hunter_gold',value:data}).catch(()=>{});}try{localStorage.setItem('croc_hunter_gold',data)}catch(e){}sG();});}else{sG();}}).catch(()=>{restarting=false;restartBtn.classList.remove('btn-disabled');sG();});};if(restartBtn){restartBtn.addEventListener('click',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doRestart();});restartBtn.addEventListener('touchend',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doRestart();});}let loadProgress=0;const loadBar=getEl('loading-bar');const loadInterval=setInterval(()=>{loadProgress+=Math.random()*15+5;if(loadProgress>=100){loadProgress=100;clearInterval(loadInterval);if(startBtnMain)startBtnMain.classList.remove('btn-disabled');}if(loadBar)loadBar.style.width=loadProgress+'%';},30);anim();
+addEventListener('resize',onR);const startBtnMain=getEl('startBtn');const doStart=()=>{if(starting)return;starting=true;const videoOverlay=getEl('video-overlay');const video=getEl('intro-video');if(!videoOverlay||!video){sG();starting=false;return;}videoOverlay.style.display='block';video.src='https://sexexe.github.io/croco/0716.mp4';let videoDone=false;const startGameAfterVideo=()=>{if(videoDone)return;videoDone=true;video.pause();videoOverlay.style.display='none';video.removeAttribute('src');video.load();sG();starting=false;};video.onended=startGameAfterVideo;video.onerror=startGameAfterVideo;video.onclick=startGameAfterVideo;video.play().catch(()=>{startGameAfterVideo();});};if(startBtnMain){startBtnMain.addEventListener('click',e=>{if(e.cancelable)e.preventDefault();doStart();});startBtnMain.addEventListener('touchend',e=>{if(e.cancelable)e.preventDefault();doStart();});}const playBtn=getEl('playBtn');const doPlay=()=>{if(missionChanging)return;missionChanging=true;stopMusic();nextMission();missionChanging=false;};if(playBtn){playBtn.addEventListener('click',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doPlay();});playBtn.addEventListener('touchend',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doPlay();});}
+/* ===== Reward-реклама после перезапуска: +100 патронов, +1000 oz ===== */
+const restartBtn=getEl('restartBtn');
+const doRestart=()=>{
+  if(restarting)return;
+  restarting=true;
+  restartBtn.classList.add('btn-disabled');
+  showRewardAd().then(result=>{
+    restarting=false;
+    restartBtn.classList.remove('btn-disabled');
+    if(result.success){
+      // Начисляем награду: +100 патронов и +1000 золота
+      pl.a += 100;
+      pl.g += 1000;
+      saveGoldProgress();
+      uH();
+      sM('pickup-msg','+100 <span class="scl-ammo">ПАТРОНЫ</span> +1000 <span class="scl-gold">ЗОЛОТО</span>');
+      sG();
+    } else {
+      sG();
+    }
+  }).catch(()=>{
+    restarting=false;
+    restartBtn.classList.remove('btn-disabled');
+    sG();
+  });
+};
+if(restartBtn){restartBtn.addEventListener('click',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doRestart();});restartBtn.addEventListener('touchend',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doRestart();});}
+let loadProgress=0;const loadBar=getEl('loading-bar');const loadInterval=setInterval(()=>{loadProgress+=Math.random()*15+5;if(loadProgress>=100){loadProgress=100;clearInterval(loadInterval);if(startBtnMain)startBtnMain.classList.remove('btn-disabled');}if(loadBar)loadBar.style.width=loadProgress+'%';},30);anim();
 function unlockAudioOnce(){
   if(sndSea){sndSea.volume=0;sndSea.play().catch(()=>{});}
   if(sndFire){sndFire.volume=0;sndFire.play().catch(()=>{});}
