@@ -181,8 +181,8 @@ function restoreMusicAfterAd(){
   if(ax&&ax.state==='suspended'){ax.resume().catch(()=>{});}
   if(cam)updateMusicVolume();
 }
+/* ===== ИЗМЕНЕНИЕ 1: межстраничная реклама теперь работает и на ПК, и на мобильном ===== */
 function showInterstitialAd(){
-  if(!isVkEnvironment||!vkBridge)return;
   if(adInProgress)return;
   const now=performance.now();
   if(now-lastInterstitialTime<INTERSTITIAL_COOLDOWN)return;
@@ -193,31 +193,43 @@ function showInterstitialAd(){
     adTimeoutHandle=null;
     restoreMusicAfterAd();
   },15000);
-  vkBridge.send('VKWebAppCheckNativeAds',{ad_format:'interstitial'})
-    .then((data)=>{
-      if(!data||!data.result){
+  // Если VK Bridge доступен — показываем нативную рекламу VK
+  if(isVkEnvironment&&vkBridge){
+    vkBridge.send('VKWebAppCheckNativeAds',{ad_format:'interstitial'})
+      .then((data)=>{
+        if(!data||!data.result){
+          adInProgress=false;
+          if(adTimeoutHandle){clearTimeout(adTimeoutHandle);adTimeoutHandle=null;}
+          return;
+        }
+        return vkBridge.send('VKWebAppShowNativeAds',{ad_format:'interstitial'})
+          .then(()=>{
+            lastInterstitialTime=performance.now();
+            adInProgress=false;
+            if(adTimeoutHandle){clearTimeout(adTimeoutHandle);adTimeoutHandle=null;}
+            restoreMusicAfterAd();
+          })
+          .catch(()=>{
+            adInProgress=false;
+            if(adTimeoutHandle){clearTimeout(adTimeoutHandle);adTimeoutHandle=null;}
+            restoreMusicAfterAd();
+          });
+      })
+      .catch(()=>{
         adInProgress=false;
         if(adTimeoutHandle){clearTimeout(adTimeoutHandle);adTimeoutHandle=null;}
-        return;
-      }
-      return vkBridge.send('VKWebAppShowNativeAds',{ad_format:'interstitial'})
-        .then(()=>{
-          lastInterstitialTime=performance.now();
-          adInProgress=false;
-          if(adTimeoutHandle){clearTimeout(adTimeoutHandle);adTimeoutHandle=null;}
-          restoreMusicAfterAd();
-        })
-        .catch(()=>{
-          adInProgress=false;
-          if(adTimeoutHandle){clearTimeout(adTimeoutHandle);adTimeoutHandle=null;}
-          restoreMusicAfterAd();
-        });
-    })
-    .catch(()=>{
+        restoreMusicAfterAd();
+      });
+  } else {
+    // На ПК/в браузере без VK — просто имитируем паузу на 1 секунду,
+    // чтобы игровой цикл корректно обработал переход и музыка восстановилась.
+    setTimeout(()=>{
+      lastInterstitialTime=performance.now();
       adInProgress=false;
       if(adTimeoutHandle){clearTimeout(adTimeoutHandle);adTimeoutHandle=null;}
       restoreMusicAfterAd();
-    });
+    },1000);
+  }
 }
 let lastTapticTime=0;
 function vkTapticFeedback(t='light'){const now=performance.now();const min=t==='light'?90:220;if(now-lastTapticTime<min)return null;lastTapticTime=now;return isVkEnvironment&&vkBridge?vkBridge.send('VKWebAppTapticFeedback',{type:t}).catch(()=>{}):null;}
@@ -316,6 +328,7 @@ const MusicManager = {
     if (this.mode === 'night' && !isMuted) this.nightEl.play().catch(()=>{});
   },
 
+  /* ===== ИЗМЕНЕНИЕ 2: ночная музыка в 2 раза тише ===== */
   update(dt) {
     if (!this.ready) return;
     const step = this.fadeSpeed * dt;
@@ -326,8 +339,9 @@ const MusicManager = {
     if (this.nightVol < 0.01 && this.targetNightVol === 0 && !this.nightEl.paused) this.nightEl.pause();
 
     const pos = getMusicPositionFactor();
+    // Ночная громкость снижена в 2 раза (0.5)
     this.dayEl.volume   = isMuted ? 0 : Math.max(0, Math.min(1, this.dayVol   * pos));
-    this.nightEl.volume = isMuted ? 0 : Math.max(0, Math.min(1, this.nightVol * pos));
+    this.nightEl.volume = isMuted ? 0 : Math.max(0, Math.min(1, this.nightVol * pos * 0.5));
   }
 };
 
@@ -1543,6 +1557,7 @@ const tsNow=performance.now()*0.001;en.forEach(e=>{e.wp+=d*e.sp;e.lg.forEach((l,
 function showLoseUI(){const desc=getEl('lose-desc');if(desc)desc.innerHTML='<span class="scl-gold">ЗОЛОТО</span>: '+pl.g+'<br>Крокодилы выиграли.';const loseScreen=getEl('lose-screen');if(loseScreen)loseScreen.style.display='flex';exitPointerLockSafe();}
 function showSuccessUI(){const missionScreen=getEl('mission-success-screen');const missionBg=getEl('mission-bg');const playBtn=getEl('playBtn');if(missionBg){if(isMob)missionBg.style.backgroundImage='url("https://sexexe.github.io/croco/ekran2F.jpg")';else missionBg.style.backgroundImage='url("https://sexexe.github.io/croco/ekranF.jpg")';}if(playBtn)playBtn.classList.remove('btn-disabled');if(missionScreen)missionScreen.style.display='block';}
 function showMissionSuccess(){stopMusic();saveGoldProgress();showSuccessUI();exitPointerLockSafe();}
+/* ===== ИЗМЕНЕНИЕ 3: скорость крокодилов растёт при непрерывной игре нескольких миссий ===== */
 function nextMission(){missionLevel++;crocodileSpeedMultiplier*=2.0;saveGoldProgress();const missionScreen=getEl('mission-success-screen');if(missionScreen)missionScreen.style.display='none';stopMusic();sG();}
 function returnToMenu(){ia=false;pl.d=true;isLeftMouseDown=false;isRightMouseDown=false;isTwoFingersTouching=false;stopBurst();MusicManager.pauseAll();if(sndSea)sndSea.volume=0;
 if(sndFire)sndFire.volume=0;if(ax)ax.suspend();const overlay=getEl('overlay');const loseScreen=getEl('lose-screen');const missionScreen=getEl('mission-success-screen');if(overlay)overlay.style.display='flex';if(loseScreen)loseScreen.style.display='none';if(missionScreen)missionScreen.style.display='none';const startBtn=getEl('startBtn');if(startBtn){startBtn.classList.remove('btn-disabled');startBtn.innerText='НАЧАТЬ ОХОТУ';}const loadBar=getEl('loading-bar');if(loadBar)loadBar.style.width='0%';let loadProgress=0;const loadInterval=setInterval(()=>{loadProgress+=Math.random()*15+5;if(loadProgress>=100){loadProgress=100;clearInterval(loadInterval);if(startBtn)startBtn.classList.remove('btn-disabled');}if(loadBar)loadBar.style.width=loadProgress+'%';},30);exitPointerLockSafe();}
@@ -1565,7 +1580,10 @@ if(!isMob&&!localStorage.getItem('croc_hunter_tutorial_shown')){
   sM('pickup-msg','ЛКМ: СТРЕЛЬБА | Пробел: СТОЯТЬ | Мышь: ОБЗОР');
   localStorage.setItem('croc_hunter_tutorial_shown','true');
 }
-loadGoldProgress().then(saved=>{if(saved&&typeof saved.gold==='number'){pl.g=saved.gold;if(saved.missionLevel){missionLevel=saved.missionLevel;crocodileSpeedMultiplier=Math.pow(2.0,missionLevel-1);}}else{pl.g=0;}uH();});const dayDisplay=getEl('day-display');if(dayDisplay)dayDisplay.innerText='День 1';const killDisplay=getEl('kill-display');if(killDisplay)killDisplay.innerText='0/'+totalKills;if(!isMob&&document.body.requestPointerLock){
+loadGoldProgress().then(saved=>{if(saved&&typeof saved.gold==='number'){pl.g=saved.gold;}else{pl.g=0;}
+/* ===== ИЗМЕНЕНИЕ 4: при каждом новом заходе в игру скорость снова 1× ===== */
+missionLevel=1;crocodileSpeedMultiplier=1.0;
+uH();});const dayDisplay=getEl('day-display');if(dayDisplay)dayDisplay.innerText='День 1';const killDisplay=getEl('kill-display');if(killDisplay)killDisplay.innerText='0/'+totalKills;if(!isMob&&document.body.requestPointerLock){
   try{
     const p=document.body.requestPointerLock();
     if(p&&p.catch)p.catch(()=>{});
@@ -1589,7 +1607,7 @@ ml=new THREE.DirectionalLight(0xaaccff,0);ml.position.set(-50,60,-30);ml.castSha
 scn.fog=new THREE.FogExp2(0x0a1525,0.028);_moonDirWorld.copy(computeMoonDir(0));scn.add(cam);createAtmosphere();createTerrainAndWater();buildPalmWorld();buildAllMaples();buildAllRocks();createAKRifle();createVoodooLady();createHut();initEffectPools();initMuzzleFlash();const moveBtn=getEl('moveBtn');const musicBtn=getEl('musicBtn');const menuBtn=getEl('menuBtn');if(musicBtn){musicBtn.addEventListener('click',e=>{e.stopPropagation();toggleMute();});}if(menuBtn){menuBtn.addEventListener('click',e=>{e.stopPropagation();returnToMenu();});}
 if(!globalThis.__crocKeysBound){globalThis.__crocKeysBound=true;document.addEventListener('keydown',e=>{if(e.code==='ArrowUp')tvKeys.up=true;else if(e.code==='ArrowDown')tvKeys.down=true;else if(e.code==='ArrowLeft')tvKeys.left=true;else if(e.code==='ArrowRight')tvKeys.right=true;else if(e.code==='Enter')tvKeys.enter=true;if(e.code==='Space'&&ia&&!pl.d){e.preventDefault();isStopped=!isStopped;updateMoveBtn();}if(e.shiftKey&&e.code==='Digit2'){crocodileSpeedMultiplier*=2.0;showCheatMessage(`⚡ СКОРОСТЬ КРОКОДИЛОВ x2! (${crocodileSpeedMultiplier.toFixed(2)})`);en.forEach(c=>{if(c.sp)c.sp*=2.0;});}if(e.shiftKey&&e.code==='Digit1'){crocodileSpeedMultiplier/=2.0;showCheatMessage(`🐌 СКОРОСТЬ КРОКОДИЛОВ /2! (${crocodileSpeedMultiplier.toFixed(2)})`);en.forEach(c=>{if(c.sp)c.sp/=2.0;});}if(e.code==='AudioVolumeUp'||e.keyCode===24){if(e.cancelable)e.preventDefault();crocodileSpeedMultiplier*=2.0;showCheatMessage(`⚡ СКОРОСТЬ КРОКОДИЛОВ x2! (${crocodileSpeedMultiplier.toFixed(2)})`);en.forEach(c=>{if(c.sp)c.sp*=2.0;});}else if(e.code==='AudioVolumeDown'||e.keyCode===25){if(e.cancelable)e.preventDefault();crocodileSpeedMultiplier/=2.0;showCheatMessage(`🐌 СКОРОСТЬ КРОКОДИЛОВ /2! (${crocodileSpeedMultiplier.toFixed(2)})`);en.forEach(c=>{if(c.sp)c.sp/=2.0;});}});document.addEventListener('keyup',e=>{if(e.code==='ArrowUp')tvKeys.up=false;else if(e.code==='ArrowDown')tvKeys.down=false;else if(e.code==='ArrowLeft')tvKeys.left=false;else if(e.code==='ArrowRight')tvKeys.right=false;else if(e.code==='Enter')tvKeys.enter=false;});}
 if(isMob){if(moveBtn){moveBtn.style.display='flex';moveBtn.addEventListener('touchend',e=>{e.preventDefault();e.stopPropagation();isStopped=!isStopped;updateMoveBtn();});moveBtn.addEventListener('click',e=>{e.stopPropagation();isStopped=!isStopped;updateMoveBtn();});}document.addEventListener('touchstart',e=>{if(!ia||pl.d)return;const target=e.target;if(target&&target.closest&&(target.closest('.cowboy-btn')||target.closest('.move-btn')||target.closest('.music-btn')||target.closest('.menu-btn')||target.closest('.play-btn')))return;if(e.touches.length>=2){isTwoFingersTouching=true;isDragging=false;checkBurstState();return;}touchStartX=e.touches[0].clientX;touchStartY=e.touches[0].clientY;isDragging=false;},{passive:false});document.addEventListener('touchmove',e=>{if(!ia||pl.d)return;if(isTwoFingersTouching){if(e.touches.length<2){isTwoFingersTouching=false;checkBurstState();}return;}e.preventDefault();const dx=e.touches[0].clientX-touchStartX;const dy=e.touches[0].clientY-touchStartY;if(Math.abs(dx)>5||Math.abs(dy)>5)isDragging=true;if(isDragging){yaw-=dx*0.005;pitch-=dy*0.005;pitch=Math.max(-Math.PI/2+0.1,Math.min(Math.PI/2-0.1,pitch));updateCamRot();touchStartX=e.touches[0].clientX;touchStartY=e.touches[0].clientY;}},{passive:false});document.addEventListener('touchend',e=>{if(!ia||pl.d)return;if(isTwoFingersTouching){if(e.touches.length<2){isTwoFingersTouching=false;checkBurstState();}return;}if(!isDragging)fireCenter();},{passive:false});document.addEventListener('touchcancel',()=>{isTwoFingersTouching=false;checkBurstState();},{passive:false});}else{if(moveBtn)moveBtn.style.display='none';document.addEventListener('mousedown',e=>{if(!ia||pl.d)return;if(e.button===0){isLeftMouseDown=true;checkBurstState();}else if(e.button===2){isRightMouseDown=true;isStopped=!isStopped;updateMoveBtn();}});document.addEventListener('mouseup',e=>{if(e.button===0){isLeftMouseDown=false;checkBurstState();}else if(e.button===2){isRightMouseDown=false;checkBurstState();}});document.addEventListener('contextmenu',e=>e.preventDefault());document.addEventListener('mousemove',e=>{if(document.pointerLockElement===document.body){yaw-=e.movementX*0.002;pitch-=e.movementY*0.002;pitch=Math.max(-Math.PI/2+0.1,Math.min(Math.PI/2-0.1,pitch));updateCamRot();}});document.addEventListener('click',e=>{if(!ia||pl.d)return;const target=e.target;if(target&&target.closest&&(target.closest('.cowboy-btn')||target.closest('.move-btn')||target.closest('.music-btn')||target.closest('.menu-btn')||target.closest('.play-btn')))return;if(document.body.requestPointerLock)document.body.requestPointerLock();});window.addEventListener('blur',()=>{isLeftMouseDown=false;isRightMouseDown=false;checkBurstState();});}
-addEventListener('resize',onR);const startBtnMain=getEl('startBtn');const doStart=()=>{if(starting)return;starting=true;const videoOverlay=getEl('video-overlay');const video=getEl('intro-video');if(!videoOverlay||!video){sG();starting=false;return;}videoOverlay.style.display='block';video.src='https://sexexe.github.io/croco/0716.mp4';let videoDone=false;const startGameAfterVideo=()=>{if(videoDone)return;videoDone=true;video.pause();videoOverlay.style.display='none';video.removeAttribute('src');video.load();sG();starting=false;};video.onended=startGameAfterVideo;video.onerror=startGameAfterVideo;video.onclick=startGameAfterVideo;video.play().catch(()=>{startGameAfterVideo();});};if(startBtnMain){startBtnMain.addEventListener('click',e=>{if(e.cancelable)e.preventDefault();doStart();});startBtnMain.addEventListener('touchend',e=>{if(e.cancelable)e.preventDefault();doStart();});}const playBtn=getEl('playBtn');const doPlay=()=>{if(missionChanging)return;missionChanging=true;stopMusic();nextMission();missionChanging=false;};if(playBtn){playBtn.addEventListener('click',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doPlay();});playBtn.addEventListener('touchend',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doPlay();});}const restartBtn=getEl('restartBtn');const doRestart=()=>{if(restarting)return;restarting=true;restartBtn.classList.add('btn-disabled');showRewardAd().then(result=>{restarting=false;restartBtn.classList.remove('btn-disabled');if(result.success){loadGoldProgress().then(saved=>{const currentGold=(saved&&typeof saved.gold==='number')?saved.gold:0;const currentMissionLevel=(saved&&saved.missionLevel)?saved.missionLevel:1;const bonusData={gold:currentGold+50,missionLevel:currentMissionLevel};const data=JSON.stringify(bonusData);if(isVkEnvironment&&vkBridge){vkBridge.send('VKWebAppStorageSet',{key:'croc_hunter_gold',value:data}).catch(()=>{});}try{localStorage.setItem('croc_hunter_gold',data)}catch(e){}sG();});}else{sG();}}).catch(()=>{restarting=false;restartBtn.classList.remove('btn-disabled');sG();});};if(restartBtn){restartBtn.addEventListener('click',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doRestart();});restartBtn.addEventListener('touchend',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doRestart();});}let loadProgress=0;const loadBar=getEl('loading-bar');const loadInterval=setInterval(()=>{loadProgress+=Math.random()*15+5;if(loadProgress>=100){loadProgress=100;clearInterval(loadInterval);if(startBtnMain)startBtnMain.classList.remove('btn-disabled');}if(loadBar)loadBar.style.width=loadProgress+'%';},30);anim();
+addEventListener('resize',onR);const startBtnMain=getEl('startBtn');const doStart=()=>{if(starting)return;starting=true;const videoOverlay=getEl('video-overlay');const video=getEl('intro-video');if(!videoOverlay||!video){sG();starting=false;return;}videoOverlay.style.display='block';video.src='https://sexexe.github.io/croco/0716.mp4';let videoDone=false;const startGameAfterVideo=()=>{if(videoDone)return;videoDone=true;video.pause();videoOverlay.style.display='none';video.removeAttribute('src');video.load();sG();starting=false;};video.onended=startGameAfterVideo;video.onerror=startGameAfterVideo;video.onclick=startGameAfterVideo;video.play().catch(()=>{startGameAfterVideo();});};if(startBtnMain){startBtnMain.addEventListener('click',e=>{if(e.cancelable)e.preventDefault();doStart();});startBtnMain.addEventListener('touchend',e=>{if(e.cancelable)e.preventDefault();doStart();});}const playBtn=getEl('playBtn');const doPlay=()=>{if(missionChanging)return;missionChanging=true;stopMusic();nextMission();missionChanging=false;};if(playBtn){playBtn.addEventListener('click',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doPlay();});playBtn.addEventListener('touchend',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doPlay();});}const restartBtn=getEl('restartBtn');const doRestart=()=>{if(restarting)return;restarting=true;restartBtn.classList.add('btn-disabled');showRewardAd().then(result=>{restarting=false;restartBtn.classList.remove('btn-disabled');if(result.success){loadGoldProgress().then(saved=>{const currentGold=(saved&&typeof saved.gold==='number')?saved.gold:0;const bonusData={gold:currentGold+50,missionLevel:1};const data=JSON.stringify(bonusData);if(isVkEnvironment&&vkBridge){vkBridge.send('VKWebAppStorageSet',{key:'croc_hunter_gold',value:data}).catch(()=>{});}try{localStorage.setItem('croc_hunter_gold',data)}catch(e){}sG();});}else{sG();}}).catch(()=>{restarting=false;restartBtn.classList.remove('btn-disabled');sG();});};if(restartBtn){restartBtn.addEventListener('click',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doRestart();});restartBtn.addEventListener('touchend',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doRestart();});}let loadProgress=0;const loadBar=getEl('loading-bar');const loadInterval=setInterval(()=>{loadProgress+=Math.random()*15+5;if(loadProgress>=100){loadProgress=100;clearInterval(loadInterval);if(startBtnMain)startBtnMain.classList.remove('btn-disabled');}if(loadBar)loadBar.style.width=loadProgress+'%';},30);anim();
 function unlockAudioOnce(){
   if(sndSea){sndSea.volume=0;sndSea.play().catch(()=>{});}
   if(sndFire){sndFire.volume=0;sndFire.play().catch(()=>{});}
