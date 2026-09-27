@@ -223,7 +223,7 @@ function _playCroxViaWebAudio(){
     const src = ax.createBufferSource();
     src.buffer = _croxBuffer;
     const gain = ax.createGain();
-    gain.gain.value = 1;
+    gain.gain.value = 0.4;
     src.connect(gain);
     gain.connect(_masterOutput);
     src.start(0);
