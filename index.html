@@ -1304,12 +1304,12 @@ function generatePalmPositions(){
       tiltZ: (Math.random() - 0.5) * 0.06
     });
   }
-  /* ===== 2 ПАЛЬМЫ ПЕРЕД ДОМОМ СО СТОРОНЫ МОРЯ ===== */
-  const doorSideX = HUT_X + (4.7 * 1.5 - 0.12) + 2;
-  const frontPositions = [
-    { x: doorSideX + 2.0, z: -2.2 },
-    { x: doorSideX + 2.0, z:  2.2 },
-  ];
+/* ===== 2 ПАЛЬМЫ ПЕРЕД ДОМОМ СО СТОРОНЫ МОРЯ ===== */
+const doorSideX = HUT_X + (4.7 * 1.5 - 0.12) + 2;
+const frontPositions = [
+  { x: doorSideX + 2.0, z: -4.4 },   // было -2.2 → стало -4.4
+  { x: doorSideX + 2.0, z:  4.4 },   // было  2.2 → стало  4.4
+];
   for (const fp of frontPositions) {
     const scale = PALM_SCALE_MIN + Math.random() * (PALM_SCALE_MAX - PALM_SCALE_MIN);
     positions.push({
