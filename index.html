@@ -2614,10 +2614,8 @@ function createAKRifle() {
   ak12.add(gunParts.muzzle);
   ak12.add(gunParts.ejection);
 if (isMob) {
-  // Сдвиг влево на 15 мм ≈ -0.15 в мировых координатах камеры (X влево)
-  // Поворот на 5° по часовой = -5° вокруг оси Z (roll)
-  gunBasePos.set(0.20 - 0.15, -0.26, -0.55);
-  gunBaseRot.set(-0.06, -0.08, 0.03 - Math.PI*5/180);
+  gunBasePos.set(0.18, -0.26, -0.55);
+  gunBaseRot.set(-0.06, -0.08, 0.03 - Math.PI*15/180);
 }
 gn.position.copy(gunBasePos);
 gn.rotation.copy(gunBaseRot);
