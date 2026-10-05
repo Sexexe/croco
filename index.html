@@ -9,6 +9,9 @@
 <title>ОХОТНИК НА КРОКОДИЛОВ</title>
 <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow+Condensed:wght@400;500;600;700&family=Playball&display=swap" rel="stylesheet">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@700;800&family=Rye&display=swap');
 :root{--hud-bg:linear-gradient(to bottom,rgba(244,228,188,.92),rgba(232,213,163,.92));--hud-border:#8b5a2b;}
@@ -1633,91 +1636,678 @@ function sCr(){const active=en.length;const toSpawn=Math.min(3-active,C.crc-kill
 function createFlies(pos){const flyCount=isMob?4:8;const positions=new Float32Array(flyCount*3);const flyData=[];for(let i=0;i<flyCount;i++){const angle=Math.random()*Math.PI*2;const radius=0.2+Math.random()*0.6;const yOff=0.4+Math.random()*0.5;positions[i*3]=Math.cos(angle)*radius;positions[i*3+1]=yOff;positions[i*3+2]=Math.sin(angle)*radius;flyData.push({angle,radius,yOff,speed:3+Math.random()*4,ySpeed:2+Math.random()*3});}const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(positions,3));const pts=new THREE.Points(geo,new THREE.PointsMaterial({color:0x000000,size:0.015,sizeAttenuation:true}));pts.position.copy(pos);pts.position.y=0.2;pts.userData={flies:flyData};scn.add(pts);db.push(pts);return pts;}
 function updateFlies(dt){const px=cam.position.x,pz=cam.position.z;db.forEach(obj=>{if(obj.isPoints&&obj.userData.flies){const dx=obj.position.x-px,dz=obj.position.z-pz;const near=dx*dx+dz*dz<900;if(obj.visible!==near)obj.visible=near;if(!near)return;const pos=obj.geometry.attributes.position;for(let i=0;i<obj.userData.flies.length;i++){const f=obj.userData.flies[i];f.angle+=f.speed*dt;pos.setXYZ(i,Math.cos(f.angle)*f.radius,f.yOff+Math.sin(performance.now()*0.007*f.ySpeed)*0.12,Math.sin(f.angle)*f.radius);}pos.needsUpdate=true;}});}
 function killCroc(j){const e=en[j];if(!e)return;cP(e.mesh.position,0x1a3a1a,6);sfxCroxWithDelay();const ch=getEl('crosshair');if(ch){ch.style.borderColor='#ff3333';ch.style.boxShadow='0 0 8px rgba(255,50,50,0.8)';setTimeout(()=>{ch.style.borderColor='#ffffff';ch.style.boxShadow='0 0 4px rgba(0,0,0,.6)';},150);}const bd=e.mesh.clone();bd.rotation.set(Math.PI,0,0);bd.position.y=0.35;bd.userData.spawnDay=currentDay;scn.add(bd);const flies=createFlies(bd.position);bd.userData.flies=flies;corpses.push(bd);scn.remove(e.mesh);en.splice(j,1);killed++;const killDisplay=getEl('kill-display');if(killDisplay)killDisplay.innerText=killed+'/'+totalKills;vkTapticFeedback('medium');if(killed>=totalKills){pl.d=true;showMissionSuccess();}}
-function createColaLabelTexture(){if(colaLabelTexture)return colaLabelTexture;const canvas=document.createElement('canvas');canvas.width=512;canvas.height=256;const ctx=canvas.getContext('2d');const grad=ctx.createLinearGradient(0,0,0,256);grad.addColorStop(0,'#d10000');grad.addColorStop(0.5,'#b30000');grad.addColorStop(1,'#8a0000');ctx.fillStyle=grad;ctx.fillRect(0,0,512,256);ctx.fillStyle='#ffffff';ctx.beginPath();ctx.moveTo(0,120);ctx.bezierCurveTo(128,100,384,140,512,120);ctx.lineTo(512,140);ctx.bezierCurveTo(384,160,128,120,0,140);ctx.closePath();ctx.fill();ctx.font='bold 72px Impact, Arial Black';ctx.textAlign='center';ctx.textBaseline='middle';ctx.strokeStyle='#000000';ctx.lineWidth=3;ctx.strokeText('CROCO',256,90);ctx.fillText('CROCO',256,90);ctx.font='bold 48px Impact, Arial Black';ctx.strokeText('COLA',256,180);ctx.fillText('COLA',256,180);ctx.fillStyle='#00aa00';ctx.beginPath();ctx.ellipse(256,220,40,12,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#004400';ctx.lineWidth=2;ctx.stroke();ctx.fillStyle='#ffff00';ctx.beginPath();ctx.arc(275,216,3,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ffffff';for(let i=0;i<5;i++){ctx.beginPath();ctx.moveTo(230+i*10,224);ctx.lineTo(235+i*10,228);ctx.lineTo(240+i*10,224);ctx.closePath();ctx.fill();}const texture=new THREE.CanvasTexture(canvas);texture.wrapS=THREE.RepeatWrapping;texture.wrapT=THREE.ClampToEdgeWrapping;colaLabelTexture=texture;return texture;}
-function createCrocoCola(){const group=new THREE.Group();const bottlePoints=[new THREE.Vector2(0.00,0.00),new THREE.Vector2(0.15,0.00),new THREE.Vector2(0.17,0.05),new THREE.Vector2(0.18,0.30),new THREE.Vector2(0.18,0.80),new THREE.Vector2(0.16,0.90),new THREE.Vector2(0.10,0.95),new THREE.Vector2(0.07,1.00),new THREE.Vector2(0.07,1.15),new THREE.Vector2(0.08,1.18),new THREE.Vector2(0.07,1.20)];const bottleGeo=new THREE.LatheGeometry(bottlePoints,24);const glassMat=new THREE.MeshStandardMaterial({color:0x22aa44,metalness:0.6,roughness:0.1,transparent:true,opacity:0.6,side:THREE.DoubleSide});const bottle=new THREE.Mesh(bottleGeo,glassMat);bottle.castShadow=true;bottle.receiveShadow=true;group.add(bottle);const liquidPoints=[new THREE.Vector2(0.00,0.02),new THREE.Vector2(0.14,0.02),new THREE.Vector2(0.15,0.06),new THREE.Vector2(0.16,0.25),new THREE.Vector2(0.16,0.70),new THREE.Vector2(0.14,0.78),new THREE.Vector2(0.00,0.78)];const liquidGeo=new THREE.LatheGeometry(liquidPoints,24);const liquidMat=new THREE.MeshStandardMaterial({color:0x0a4020,metalness:0.3,roughness:0.3,emissive:0x003311,emissiveIntensity:0.3});const liquid=new THREE.Mesh(liquidGeo,liquidMat);liquid.position.y=0;group.add(liquid);const labelGeo=new THREE.CylinderGeometry(0.181,0.181,0.50,32,1,true);const labelMat=new THREE.MeshStandardMaterial({map:createColaLabelTexture(),roughness:0.6,metalness:0.0,side:THREE.DoubleSide});const label=new THREE.Mesh(labelGeo,labelMat);label.position.y=0.50;group.add(label);const capGeo=new THREE.CylinderGeometry(0.085,0.085,0.08,16);const capMat=new THREE.MeshStandardMaterial({color:0xcc0000,metalness:0.7,roughness:0.3});const cap=new THREE.Mesh(capGeo,capMat);cap.position.y=1.24;cap.castShadow=true;group.add(cap);const capTopGeo=new THREE.CylinderGeometry(0.075,0.085,0.02,16);const capTop=new THREE.Mesh(capTopGeo,capMat);capTop.position.y=1.29;group.add(capTop);for(let i=0;i<16;i++){const stripeGeo=new THREE.BoxGeometry(0.005,0.08,0.02);const stripeMat=new THREE.MeshStandardMaterial({color:0x660000});const stripe=new THREE.Mesh(stripeGeo,stripeMat);const angle=(i/16)*Math.PI*2;stripe.position.set(Math.cos(angle)*0.085,1.24,Math.sin(angle)*0.085);stripe.lookAt(0,1.24,0);group.add(stripe);}group.scale.set(1.3,1.3,1.3);group.userData={t:'cola',c:false,healAmount:10};return group;}
-function spawnCrocoCola(){const a=Math.random()*Math.PI*2;const landR=grassRadius(a);const minR=CLEARING_RADIUS+3;const maxR=Math.max(minR+1,landR-5);if(maxR<=minR)return;const r=minR+Math.random()*(maxR-minR);const x=Math.cos(a)*r,z=Math.sin(a)*r;const bottle=createCrocoCola();bottle.position.set(x,0,z);bottle.rotation.y=Math.random()*Math.PI*2;scn.add(bottle);colaBottles.push(bottle);colaSpawnedToday=true;}
 
 /* ============================================================
-   НОВЫЙ МАГАЗИН (из рожок.html) — с пропорциональным масштабом
-   по высоте старого магазина
+   ОРИГИНАЛЬНАЯ БУТЫЛКА CROCO-COLA (порт из CROCOCOLA.html)
    ============================================================ */
-function createAKMag(){
-  const magMats={
-    polymer:     new THREE.MeshPhysicalMaterial({color:0x151719,metalness:0.04,roughness:0.83,clearcoat:0.04,envMapIntensity:0.42}),
-    polymerDark: new THREE.MeshPhysicalMaterial({color:0x101214,metalness:0.05,roughness:0.78,clearcoat:0.035,envMapIntensity:0.38}),
-    rail:        new THREE.MeshPhysicalMaterial({color:0x1b1e21,metalness:0.82,roughness:0.58,envMapIntensity:0.66}),
-    dark:        new THREE.MeshStandardMaterial({color:0x08090a,roughness:0.92,metalness:0.08})
-  };
-  function rboxMag(w,h,d,r){
-    const minDim=Math.min(w,h,d);
-    const safeR=Math.max(0.0001,Math.min(r,minDim/2.08));
-    return new RoundedBoxGeometry(w,h,d,isMob?1:2,safeR);
+const _ccCanvas=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c;};
+const _ccClamp=(v,a,b)=>v<a?a:v>b?b:v;
+const _ccSms=(a,b,t)=>{t=_ccClamp((t-a)/(b-a),0,1);return t*t*(3-2*t);};
+const _ccRnd=(a,b)=>a+Math.random()*(b-a);
+const _ccTAU=Math.PI*2;
+const _ccFB={
+  slab:s=>`${s}px "Alfa Slab One",Georgia,serif`,
+  script:s=>`${s}px "Playball","Segoe Script",cursive`,
+  cond:(s,w=600)=>`${w} ${s}px "Barlow Condensed","Arial Narrow",sans-serif`
+};
+function _ccTt(x,str,o){
+  const{font,fill,cx,cy,tr=0,align='center',baseline='middle',stroke=null,lw=0,dx=0,dy=0}=o;
+  x.save(); x.font=font; x.textBaseline=baseline; x.translate(dx,dy);
+  const ch=[...str], wch=ch.map(c=>x.measureText(c).width);
+  const W=wch.reduce((a,b)=>a+b,0)+tr*(ch.length-1);
+  let sx=align==='center'?cx-W/2:align==='right'?cx-W:cx;
+  if(stroke){x.lineWidth=lw;x.lineJoin='round';x.miterLimit=2;x.strokeStyle=stroke;
+    let p=sx; for(let i=0;i<ch.length;i++){x.strokeText(ch[i],p,cy);p+=wch[i]+tr;}}
+  x.fillStyle=fill; let p=sx;
+  for(let i=0;i<ch.length;i++){x.fillText(ch[i],p,cy);p+=wch[i]+tr;}
+  x.restore(); return W;
+}
+function _ccArcWord(x,str,o){
+  const{cx,cy,r,font,fill,side='top',stroke=null,lw=0,pad=0}=o;
+  x.save(); x.font=font; x.textAlign='center'; x.textBaseline='middle';
+  const ch=[...str], w=ch.map(c=>x.measureText(c).width+pad);
+  const tot=w.reduce((a,b)=>a+b,0)/r;
+  let a=(side==='top')? -Math.PI/2-tot/2 : Math.PI/2+tot/2;
+  const dir=(side==='top')?1:-1;
+  for(let i=0;i<ch.length;i++){
+    const da=w[i]/r, am=a+dir*da/2;
+    const px=cx+Math.cos(am)*r, py=cy+Math.sin(am)*r;
+    x.save(); x.translate(px,py); x.rotate(am+(side==='top'?Math.PI/2:-Math.PI/2));
+    if(stroke){x.lineWidth=lw;x.strokeStyle=stroke;x.lineJoin='round';x.strokeText(ch[i],0,0);}
+    x.fillStyle=fill; x.fillText(ch[i],0,0);
+    x.restore(); a+=dir*da;
   }
-  function addMag(parent,geo,mat,x,y,z){
-    const m=new THREE.Mesh(geo,mat);
-    m.position.set(x||0,y||0,z||0);
-    m.castShadow=true;
-    m.receiveShadow=true;
-    parent.add(m);
-    return m;
-  }
-  function buildMagazineMesh(points,mat,ribMat,floorMat){
-    const g=new THREE.Group();
-    const up=new THREE.Vector3(0,1,0);
-    for(let i=0;i<points.length-1;i++){
-      const p0=points[i],p1=points[i+1];
-      const dir=new THREE.Vector3(p1.x-p0.x,p1.y-p0.y,0);
-      const len=dir.length()*1.06;
-      dir.normalize();
-      const mid=new THREE.Vector3((p0.x+p1.x)/2,(p0.y+p1.y)/2,0);
-      const seg=addMag(g,rboxMag(0.056,len,0.026,0.004),mat,mid.x,mid.y,mid.z);
-      seg.quaternion.setFromUnitVectors(up,dir);
-      if(i<points.length-2){
-        const rib=addMag(g,rboxMag(0.060,0.0045,0.029,0.0015),ribMat,p1.x,p1.y,0);
-        rib.quaternion.setFromUnitVectors(up,dir);
-      }
+  x.restore();
+}
+function _ccStar(x,cx,cy,R,fill,rot=-Math.PI/2,ir=0.45,n=5){
+  x.beginPath();
+  for(let i=0;i<n*2;i++){const a=rot+i*Math.PI/n,r=(i%2?R*ir:R);
+    const px=cx+Math.cos(a)*r,py=cy+Math.sin(a)*r; i?x.lineTo(px,py):x.moveTo(px,py);}
+  x.closePath(); x.fillStyle=fill; x.fill();
+}
+const _ccNoise=(()=>{const c=_ccCanvas(128,128),x=c.getContext('2d'),im=x.createImageData(128,128);
+  for(let i=0;i<im.data.length;i+=4){const v=190+Math.random()*60|0;im.data[i]=im.data[i+1]=im.data[i+2]=v;im.data[i+3]=255;}
+  x.putImageData(im,0,0);return c;})();
+function _ccCroco(x,cx,cy,L,c){
+  const s=L/2;
+  x.save(); x.translate(cx,cy); x.scale(s,s*0.94);
+  const topY=t=>0.02-0.24*Math.sin(Math.PI*Math.pow(t,0.75))-0.12*Math.pow(t,6)-0.115*Math.exp(-Math.pow((t-0.80)/0.055,2));
+  const botY=t=>0.02+0.185*Math.sin(Math.PI*Math.pow(t,0.85))-0.105*Math.pow(t,11);
+  const N=90;
+  x.strokeStyle=c.body;x.lineCap='round';x.lineJoin='round';x.lineWidth=0.088;
+  x.beginPath();x.moveTo(-0.42,0.08);x.lineTo(-0.28,0.27);x.lineTo(-0.47,0.40);x.stroke();
+  x.beginPath();x.moveTo(0.30,0.08);x.lineTo(0.45,0.25);x.lineTo(0.29,0.40);x.stroke();
+  x.strokeStyle=c.claw;x.lineWidth=0.028;
+  for(const[fx,fy]of[[-0.47,0.40],[0.29,0.40]])for(let k=-1;k<=1;k++){
+    x.beginPath();x.moveTo(fx,fy);x.lineTo(fx+k*0.055-0.015,fy+0.075);x.stroke();}
+  x.beginPath();
+  for(let i=0;i<=N;i++){const t=i/N,px=-1+2*t,py=topY(t);i?x.lineTo(px,py):x.moveTo(px,py);}
+  for(let i=N;i>=0;i--){const t=i/N;x.lineTo(-1+2*t,botY(t));}
+  x.closePath();x.fillStyle=c.body;x.fill();
+  x.fillStyle=c.ridge;
+  for(let i=2;i<72;i+=2){const t=i/N,px=-1+2*t,py=topY(t),h=0.05+0.045*Math.abs(Math.sin(t*7));
+    x.beginPath();x.moveTo(px-0.030,py+0.010);x.lineTo(px,py-h);x.lineTo(px+0.030,py+0.010);x.closePath();x.fill();}
+  x.strokeStyle=c.line;x.lineWidth=0.011;
+  for(let i=15;i<60;i+=3){const t=i/N,px=-1+2*t;x.beginPath();x.moveTo(px,botY(t)-0.008);x.lineTo(px,botY(t)-0.070);x.stroke();}
+  x.strokeStyle=c.line;x.lineWidth=0.020;x.beginPath();
+  x.moveTo(0.54,0.000);x.quadraticCurveTo(0.80,-0.032,0.995,-0.052);x.stroke();
+  x.fillStyle=c.teeth;
+  for(let i=0;i<10;i++){const u=i/9,mx=0.575+0.415*u,my=-0.002-0.048*u,k=(i%2?1:-1);
+    x.beginPath();x.moveTo(mx-0.014,my);x.lineTo(mx+0.014,my);x.lineTo(mx,my+k*0.042+0.012);x.closePath();x.fill();}
+  x.fillStyle=c.eye;x.beginPath();x.arc(0.60,-0.175,0.052,0,_ccTAU);x.fill();
+  x.fillStyle=c.pupil;x.beginPath();x.arc(0.615,-0.180,0.026,0,_ccTAU);x.fill();
+  x.fillStyle=c.glint;x.beginPath();x.arc(0.632,-0.196,0.011,0,_ccTAU);x.fill();
+  x.fillStyle=c.line;x.beginPath();x.ellipse(0.945,-0.078,0.020,0.013,0,0,_ccTAU);x.fill();
+  x.restore();
+}
+const _ccCrocArt={body:'#0b3f2b',ridge:'#e8c471',line:'rgba(226,197,120,.75)',teeth:'#fff6e2',claw:'#e8c471',eye:'#f2c85a',pupil:'#12100a',glint:'#fff'};
+const _ccCrocFoil={body:'#fff',ridge:'#000',line:'#000',teeth:'#fff',claw:'#fff',eye:'#000',pupil:'#fff',glint:'#fff'};
+
+function _ccRenderLabel(x,W,H,mode){
+  const art=(mode==='art');
+  const st=(a,f)=>art?(typeof a==='function'?a(x):a):(f==null?'#000':(typeof f==='function'?f(x):f));
+  const lg=(y0,y1,s)=>{const g=x.createLinearGradient(0,y0,0,y1);s.forEach(k=>g.addColorStop(k[0],k[1]));return g;};
+  const gold=(y0,y1)=>art?lg(y0,y1,[[0,'#6d4312'],[.13,'#e6bd6d'],[.28,'#fff6d4'],[.44,'#cb9738'],[.60,'#f7e6ae'],[.82,'#96601d'],[1,'#5f3a10']]):'#ffffff';
+  const cream=(y0,y1)=>art?lg(y0,y1,[[0,'#fffdf5'],[.55,'#f3e8cd'],[1,'#d7c6a1']]):null;
+
+  x.fillStyle=art?lg(0,H,[[0,'#0f543c'],[.28,'#0b3f2c'],[.60,'#07271a'],[1,'#04150f']]):'#000';
+  x.fillRect(0,0,W,H);
+
+  if(art){
+    const cols=46,rows=13,cw=W/cols,ch=H/rows;
+    for(let r=0;r<rows;r++)for(let i=0;i<cols;i++){
+      const px=i*cw+((r%2)?cw/2:0),py=r*ch;
+      x.beginPath();x.moveTo(px,py+ch*.5);x.lineTo(px+cw*.5,py);x.lineTo(px+cw,py+ch*.5);x.lineTo(px+cw*.5,py+ch);x.closePath();
+      x.fillStyle='rgba(160,255,200,.030)';x.fill();
+      x.strokeStyle='rgba(1,14,9,.22)';x.lineWidth=1.1;x.stroke();
     }
-    const first=points[0],second=points[1];
-    const dir0=new THREE.Vector3(second.x-first.x,second.y-first.y,0).normalize();
-    const lip=addMag(g,rboxMag(0.060,0.013,0.030,0.0025),ribMat,first.x,first.y,0);
-    lip.quaternion.setFromUnitVectors(up,dir0);
-    const last=points[points.length-1],prev=points[points.length-2];
-    const dirLast=new THREE.Vector3(last.x-prev.x,last.y-prev.y,0).normalize();
-    const plate=addMag(g,rboxMag(0.064,0.014,0.033,0.003),floorMat,last.x,last.y,0);
-    plate.quaternion.setFromUnitVectors(up,dirLast);
-    addMag(g,rboxMag(0.050,0.002,0.024,0.001),magMats.dark,first.x,first.y+0.006,0);
-    return g;
+    for(const cx of[512,1536]){
+      const g=x.createLinearGradient(cx-230,0,cx+230,0);
+      g.addColorStop(0,'rgba(2,20,14,0)');g.addColorStop(.5,'rgba(2,20,14,.42)');g.addColorStop(1,'rgba(2,20,14,0)');
+      x.fillStyle=g;x.fillRect(cx-230,58,460,H-116);
+    }
+    const gb=x.createLinearGradient(1024-260,0,1024+260,0);
+    gb.addColorStop(0,'rgba(1,12,8,0)');gb.addColorStop(.5,'rgba(1,12,8,.62)');gb.addColorStop(1,'rgba(1,12,8,0)');
+    x.fillStyle=gb;x.fillRect(1024-260,58,520,H-116);
+    x.save();
+    const cx=1024,cy=346;
+    for(let i=0;i<56;i++){const a0=i/56*_ccTAU,a1=a0+_ccTAU/112;
+      x.beginPath();x.moveTo(cx,cy);x.arc(cx,cy,470,a0,a1);x.closePath();
+      x.fillStyle='rgba(120,240,170,.045)';x.fill();}
+    const rg=x.createRadialGradient(cx,cy,30,cx,cy,420);
+    rg.addColorStop(0,'rgba(46,168,112,.42)');rg.addColorStop(1,'rgba(46,168,112,0)');
+    x.fillStyle=rg;x.beginPath();x.arc(cx,cy,420,0,_ccTAU);x.fill();x.restore();
   }
+
+  const band=(ym,amp,wl,thick,ph,fill,stroke)=>{
+    const n=300;x.beginPath();
+    for(let i=0;i<=n;i++){const px=i/n*W,y=ym+amp*Math.sin(_ccTAU*px/wl+ph)-thick/2;i?x.lineTo(px,y):x.moveTo(px,y);}
+    for(let i=n;i>=0;i--){const px=i/n*W,y=ym+amp*Math.sin(_ccTAU*px/wl+ph)+thick/2;x.lineTo(px,y);}
+    x.closePath();x.fillStyle=fill;x.fill();
+    if(stroke){x.strokeStyle=stroke;x.lineWidth=3.4;x.stroke();}
+  };
+  band(516,34,512,52,0,st(()=>cream(452,556)),st(null,null));
+  band(516,34,512,52,0,null,'#000');
+  if(art){x.globalAlpha=.55;band(505,34,512,7,0,'#fffef7');x.globalAlpha=1;}
+  band(574,26,512,17,Math.PI,st(()=>gold(556,594)),'#ffffff');
+
+  const rail=(y0,h,txt)=>{
+    x.save();x.beginPath();x.rect(0,y0,W,h);x.clip();
+    x.fillStyle=st(()=>gold(y0,y0+h),'#ffffff');x.fillRect(0,y0,W,h);
+    if(art){
+      x.globalAlpha=.30;x.strokeStyle='#3a2409';x.lineWidth=1.3;
+      for(let k=0;k<10;k++){x.beginPath();
+        for(let px=0;px<=W;px+=6){const t=px/W*_ccTAU;
+          const yy=y0+h/2+Math.sin(t*(6+k*2)+k*.9)*h*.17+Math.cos(t*(11+k))*h*.11;
+          px?x.lineTo(px,yy):x.moveTo(px,yy);}
+        x.stroke();}
+      x.globalAlpha=1;
+    }
+    x.font=_ccFB.cond(21,700);
+    const one=[...txt].reduce((a,c)=>a+x.measureText(c).width,0)+txt.length*2.2;
+    const reps=Math.round(W/one), cell=W/reps;
+    const tw=_ccTt(x,txt,0,0,{font:_ccFB.cond(21,700),fill:'#000',align:'left'});
+    let px=0;
+    while(px<W){x.save();x.translate(px+cell/2,0);x.scale(cell/tw,1);
+      _ccTt(x,txt,0,y0+h/2+7,{font:_ccFB.cond(21,700),fill:st('#5a3a10','#000')});x.restore();px+=cell;}
+    x.restore();
+    x.fillStyle=st('#f8ecc4','#ffffff');x.fillRect(0,y0,W,3);x.fillRect(0,y0+h-3,W,3);
+    x.fillStyle=st('rgba(48,26,5,.6)','#000');x.fillRect(0,y0+3,W,2);x.fillRect(0,y0+h-5,W,2);
+  };
+  rail(0,58,'  CROCO COLA  ·  PREMIUM COLA BEVERAGE  ·  EST. MCMXXVI  ·  NO. 001  ·  SERVE ICE COLD');
+  rail(H-58,58,'  CROCO COLA BREWERIES  ·  CARBONATED  ·  330 ml  ·  KEEP CHILLED  ·  ORIGINAL RECIPE');
+
+  const medallion=(cx,cy,R,ringTxt)=>{
+    x.save();
+    x.beginPath();x.arc(cx,cy,R,0,_ccTAU);
+    x.fillStyle=st(()=>{const g=x.createRadialGradient(cx-R*.3,cy-R*.35,R*.1,cx,cy,R);
+      g.addColorStop(0,'#fff6d6');g.addColorStop(.45,'#d7a544');g.addColorStop(.78,'#8c5b18');g.addColorStop(1,'#f0d898');return g;},'#ffffff');
+    x.fill();
+    x.beginPath();x.arc(cx,cy,R*.86,0,_ccTAU);
+    x.fillStyle=st(()=>{const g=x.createRadialGradient(cx,cy-R*.2,R*.05,cx,cy,R*.9);
+      g.addColorStop(0,'#0d4c34');g.addColorStop(1,'#02110c');return g;},'#000000');
+    x.fill();
+    x.strokeStyle=st('#f4e2ae','#ffffff');x.lineWidth=R*.028;
+    x.beginPath();x.arc(cx,cy,R*.93,0,_ccTAU);x.stroke();
+    if(art){x.strokeStyle='rgba(0,0,0,.35)';x.lineWidth=1.4;x.beginPath();x.arc(cx,cy,R*.80,0,_ccTAU);x.stroke();}
+    _ccArcWord(x,ringTxt,{cx,cy,r:R*.66,font:_ccFB.cond(R*.155,700),fill:st('#f3dda4','#ffffff'),side:'top',pad:R*.02});
+    _ccArcWord(x,'ORIGINAL  ·  RECIPE',{cx,cy,r:R*.66,font:_ccFB.cond(R*.135,600),fill:st('#cfa750','#ffffff'),side:'bottom',pad:R*.02});
+    _ccCroco(x,cx,cy+R*.04,R*.86,art?{body:'#e9c877',ridge:'#0b3f2b',line:'rgba(10,40,26,.8)',teeth:'#fff8e6',claw:'#f6e4b4',eye:'#2a1c07',pupil:'#f6e4b4',glint:'#fff'}:_ccCrocFoil);
+    _ccStar(x,cx-R*.55,cy,R*.075,st('#f3dda4','#ffffff'));
+    _ccStar(x,cx+R*.55,cy,R*.075,st('#f3dda4','#ffffff'));
+    x.restore();
+  };
+
+  medallion(1024,152,74,'CROCO COLA BREWERIES');
+  const archR=1500, archCy=330+archR;
+  _ccTt(x,'CROCO',{font:_ccFB.slab(198),cx:1024,cy:336,tr:14,dx:0,dy:14,fill:st('#02120c','#000')});
+  _ccArcWord(x,'CROCO',{cx:1024,cy:archCy,r:archR,font:_ccFB.slab(198),pad:9,
+    stroke:st('#03150e','#000000'),lw:22,
+    fill:st(()=>lg(archCy-archR-120,archCy-archR+120,[[0,'#fff8dd'],[.32,'#e7bd63'],[.55,'#a06d1f'],[.78,'#ffe9ac'],[1,'#8b5a19']]),'#ffffff')});
+  _ccArcWord(x,'CROCO',{cx:1024,cy:archCy-6,r:archR,font:_ccFB.slab(198),pad:9,
+    stroke:st('rgba(255,248,220,.55)','#000000'),lw:3,fill:'rgba(0,0,0,0)'});
+  x.save();x.translate(1024,452);x.rotate(-0.10);
+  _ccTt(x,'Cola',{font:_ccFB.script(268),cx:0,cy:0,dx:12,dy:14,fill:st('#7a4d13','#000')});
+  _ccTt(x,'Cola',{font:_ccFB.script(268),cx:0,cy:0,fill:st('#fffdf4','#000'),stroke:st('#052016','#000'),lw:9});
+  _ccTt(x,'Cola',{font:_ccFB.script(268),cx:0,cy:-4,fill:st('#ffffff','#000')});
+  x.restore();
+  _ccTt(x,'PREMIUM CROCODILE COLA',{font:_ccFB.cond(46,700),cx:1024,cy:612,tr:17,
+    fill:st(()=>gold(590,634),'#ffffff')});
+  _ccTt(x,'NO. 001  ·  EST. MCMXXVI  ·  330 ml',{font:_ccFB.cond(26,500),cx:1024,cy:640,tr:6,
+    fill:st('rgba(255,246,226,.62)','#000')});
+
+  for(const[cx,dir]of[[512,-1],[1536,1]]){
+    x.strokeStyle=st('rgba(238,206,130,.55)','#ffffff');x.lineWidth=2;
+    x.strokeRect(cx-196,86,392,H-172);
+    x.strokeStyle=st('rgba(238,206,130,.28)','#000');x.lineWidth=1;
+    x.strokeRect(cx-186,96,372,H-192);
+    for(let i=0;i<7;i++){const yy=140+i*70;
+      x.save();x.translate(cx,yy);x.rotate(Math.PI/4);
+      x.fillStyle=st(i%2?'rgba(240,210,140,.30)':'rgba(240,210,140,.10)','#ffffff');
+      x.fillRect(-11,-11,22,22);x.restore();}
+    x.save();x.translate(cx,H/2+10);x.rotate(dir*Math.PI/2);
+    _ccTt(x,'CROCO COLA  ·  NO. 001',{font:_ccFB.cond(52,700),cx:0,cy:0,tr:12,
+      fill:st(()=>gold(-26,26),'#ffffff')});
+    _ccTt(x,'  ·  SERVE ICE COLD  ·  CARBONATED  ·',{font:_ccFB.cond(28,500),cx:0,cy:44,tr:8,
+      fill:st('rgba(255,246,226,.55)','#000')});
+    x.restore();
+    _ccCroco(x,cx,H-140,86,art?{body:'rgba(233,200,119,.85)',ridge:'rgba(6,32,22,.9)',line:'rgba(6,32,22,.7)',teeth:'rgba(255,248,230,.9)',claw:'rgba(246,228,180,.9)',eye:'#0a1a12',pupil:'#f6e4b4',glint:'#fff'}:_ccCrocFoil);
+  }
+
+  for(const px of[0,W]){
+    x.save();x.translate(px,0);
+    x.strokeStyle=st('rgba(238,206,130,.45)','#ffffff');x.lineWidth=2;
+    x.strokeRect(-232,84,464,H-168);
+    medallion(0,158,58,'CROCO COLA CO.');
+    const L=[
+      ['CROCO COLA\u2122','700',34,'#f6e9c6'],
+      ['CARBONATED COLA BEVERAGE','500',24,'rgba(255,246,226,.72)'],
+      ['','400',14,''],
+      ['INGREDIENTS: CARBONATED WATER, CANE SUGAR,','400',23,'rgba(255,246,226,.62)'],
+      ['COFFEE EXTRACT, CITRIC ACID, NATURAL FLAVOURS,','400',23,'rgba(255,246,226,.62)'],
+      ['CAFFEINE, CROCODILE TEAR EXTRACT*.','400',23,'rgba(255,246,226,.62)'],
+      ['*ONLY FROM HAPPY, FREE-RANGE CROCODILES.','400',20,'rgba(196,255,214,.5)'],
+    ];
+    let yy=248;
+    for(const[t,wht,sz,col]of L){if(t)_ccTt(x,t,0,yy,{font:_ccFB.cond(sz,wht),tr:1.6,fill:art?col:'#000'});yy+=(t==='')?18:sz+9;}
+    x.strokeStyle=st('rgba(238,206,130,.35)','#ffffff');x.lineWidth=1.6;
+    x.beginPath();x.moveTo(-150,438);x.lineTo(150,438);x.stroke();
+    _ccTt(x,'PER 100 ml: ENERGY 180 kJ / 42 kcal',0,466,{font:_ccFB.cond(22,500),tr:1.2,fill:art?'rgba(255,246,226,.6)':'#000'});
+    _ccTt(x,'SUGARS 10.6 g  ·  CAFFEINE 11 mg',0,492,{font:_ccFB.cond(22,500),tr:1.2,fill:art?'rgba(255,246,226,.6)':'#000'});
+    _ccTt(x,'DO NOT SHAKE  ·  RESEALABLE  ·  KEEP CHILLED',0,520,{font:_ccFB.cond(22,600),tr:1.2,fill:art?'rgba(255,246,226,.5)':'#000'});
+    x.fillStyle=st('#f6ecd2','#000');x.fillRect(-108,548,216,84);
+    let bx=-98;let seed=7;
+    while(bx<96){seed=(seed*1103515245+12345)&0x7fffffff;
+      const bw=1.6+(seed%4);x.fillStyle=art?'#0a0f0c':'#000';x.fillRect(bx,556,bw,62);bx+=bw+1.4+(seed%3)*0.7;}
+    _ccTt(x,'5  440001  007734',0,644,{font:_ccFB.cond(22,500),tr:3,fill:art?'rgba(255,246,226,.65)':'#000'});
+    _ccTt(x,'L 20261006 A  ·  BEST BEFORE 06 2028',0,672,{font:_ccFB.cond(19,400),tr:2,fill:art?'rgba(196,255,214,.42)':'#000'});
+    x.restore();
+  }
+
+  if(art){
+    const p=x.createPattern(_ccNoise,'repeat');
+    x.globalAlpha=.055;x.globalCompositeOperation='overlay';x.fillStyle=p;x.fillRect(0,0,W,H);
+    x.globalCompositeOperation='source-over';x.globalAlpha=1;
+  }
+}
+
+function _ccRenderCap(x,S,mode){
+  const art=(mode==='art');
+  const g=x.createRadialGradient(S*.38,S*.32,S*.04,S*.5,S*.5,S*.55);
+  g.addColorStop(0,'#12563a');g.addColorStop(.7,'#08301f');g.addColorStop(1,'#03150e');
+  x.fillStyle=art?g:'#000';x.beginPath();x.arc(S/2,S/2,S/2,0,_ccTAU);x.fill();
+  const ring=(r,w,col,foil)=>{x.beginPath();x.arc(S/2,S/2,r,0,_ccTAU);x.lineWidth=w;x.strokeStyle=art?col:foil;x.stroke();};
+  ring(S*.478,S*.028,'#f0d79a','#ffffff');
+  ring(S*.430,S*.012,'rgba(240,215,154,.6)','#ffffff');
+  ring(S*.150,S*.010,'rgba(240,215,154,.5)','#ffffff');
+  if(art){
+    x.save();x.beginPath();x.arc(S/2,S/2,S*.478,0,_ccTAU);x.clip();
+    for(let i=0;i<220;i++){const a=i/220*_ccTAU;
+      x.beginPath();x.moveTo(S/2+Math.cos(a)*S*.15,S/2+Math.sin(a)*S*.15);
+      x.lineTo(S/2+Math.cos(a)*S*.48,S/2+Math.sin(a)*S*.48);
+      x.strokeStyle=`rgba(255,255,255,${Math.random()*.05})`;x.lineWidth=Math.random()*3;x.stroke();}
+    x.restore();
+  }
+  _ccArcWord(x,'CROCO COLA  ·  BREWERIES  ·',{cx:S/2,cy:S/2,r:S*.352,font:_ccFB.cond(S*.062,700),
+    fill:art?'#f3dda4':'#ffffff',side:'top',pad:S*.012});
+  _ccArcWord(x,'NO. 001  ·  MCMXXVI',{cx:S/2,cy:S/2,r:S*.352,font:_ccFB.cond(S*.055,600),
+    fill:art?'#c9a253':'#ffffff',side:'bottom',pad:S*.014});
+  _ccCroco(x,S/2,S*.505,S*.30,art?{body:'#eccd82',ridge:'#08301f',line:'rgba(4,20,13,.85)',teeth:'#fff8e6',claw:'#f6e4b4',eye:'#241a08',pupil:'#f6e4b4',glint:'#fff'}:_ccCrocFoil);
+  _ccStar(x,S*.5-S*.24,S*.5,S*.022,art?'#f3dda4':'#ffffff');
+  _ccStar(x,S*.5+S*.24,S*.5,S*.022,art?'#f3dda4':'#ffffff');
+}
+
+function _ccMapsFromMask(mask,S){
+  const mw=mask.width>>1,mh=mask.height>>1;
+  const small=_ccCanvas(mw,mh),sx=small.getContext('2d');
+  sx.drawImage(mask,0,0,mw,mh);
+  const md=sx.getImageData(0,0,mw,mh).data;
+  const rgh=_ccCanvas(mw,mh),rx=rgh.getContext('2d'),rim=rx.createImageData(mw,mh);
+  const met=_ccCanvas(mw,mh),mx2=met.getContext('2d'),mem=mx2.createImageData(mw,mh);
+  const hgt=_ccCanvas(S,S),hx=hgt.getContext('2d');
+  hx.filter=`blur(${(S/mw*1.7).toFixed(2)}px)`;hx.drawImage(mask,0,0,S,S);hx.filter='none';
+  const hd=hx.getImageData(0,0,S,S).data;
+  const nrm=_ccCanvas(S,S),nx=nrm.getContext('2d'),nim=nx.createImageData(S,S);
+  const H=(i,j)=>{i=(i+S)%S;j=_ccClamp(j,0,S-1);return hd[(j*S+i)*4]/255;};
+  const STR=3.2;
+  for(let j=0;j<S;j++)for(let i=0;i<S;i++){
+    const dx=(H(i+1,j)-H(i-1,j))*STR, dy=(H(i,j+1)-H(i,j-1))*STR;
+    let a=-dx,b=dy,c=1;const l=Math.hypot(a,b,c);const o=(j*S+i)*4;
+    nim.data[o]=(a/l*.5+.5)*255;nim.data[o+1]=(b/l*.5+.5)*255;nim.data[o+2]=(c/l*.5+.5)*255;nim.data[o+3]=255;
+  }
+  nx.putImageData(nim,0,0);
+  for(let j=0;j<mh;j++)for(let i=0;i<mw;i++){
+    const s=(j*mw+i)*4,f=md[s]/255,o=(j*mw+i)*4;
+    mem.data[o]=mem.data[o+1]=mem.data[o+2]=f*255;mem.data[o+3]=255;
+    const r=0.50-f*0.37+(Math.random()-.5)*0.05;
+    rim.data[o]=rim.data[o+1]=rim.data[o+2]=_ccClamp(r,0,1)*255;rim.data[o+3]=255;
+  }
+  mx2.putImageData(mem,0,0);rx.putImageData(rim,0,0);
+  return{metal:met,rough:rgh,norm:nrm};
+}
+
+function _ccTex(canvas,srgb=true,rep=[1,1]){
+  const t=new THREE.CanvasTexture(canvas);
+  t.colorSpace=srgb?THREE.SRGBColorSpace:THREE.NoColorSpace;
+  t.wrapS=t.wrapT=THREE.RepeatWrapping;
+  t.repeat.set(rep[0],rep[1]);
+  if(rnd)t.anisotropy=Math.min(8,rnd.capabilities.getMaxAnisotropy());
+  return t;
+}
+
+function _ccDropCanvas(){
+  const S=512,c=_ccCanvas(S,S),x=c.getContext('2d');
+  x.fillStyle='#8c8c8c';x.fillRect(0,0,S,S);
+  const drop=(px,py,r)=>{
+    const g=x.createRadialGradient(px-r*.3,py-r*.35,r*.1,px,py,r);
+    g.addColorStop(0,'rgba(255,255,255,.95)');g.addColorStop(.62,'rgba(220,220,220,.6)');g.addColorStop(1,'rgba(140,140,140,0)');
+    x.fillStyle=g;x.beginPath();x.arc(px,py,r,0,_ccTAU);x.fill();
+  };
+  for(let i=0;i<760;i++)drop(Math.random()*S,Math.random()*S,_ccRnd(1.2,4.2));
+  for(let i=0;i<52;i++){
+    const px=Math.random()*S,py=Math.random()*S,r=_ccRnd(5,15);
+    drop(px,py,r);
+    x.strokeStyle='rgba(206,206,206,.5)';x.lineWidth=r*.55;x.lineCap='round';
+    x.beginPath();x.moveTo(px,py);x.quadraticCurveTo(px+_ccRnd(-4,4),py-r*_ccRnd(2,5),px+_ccRnd(-2,2),py-r*_ccRnd(4,8));x.stroke();
+  }
+  return c;
+}
+function _ccDotCanvas(){
+  const S=64,c=_ccCanvas(S,S),x=c.getContext('2d');
+  const g=x.createRadialGradient(32,32,0,32,32,32);
+  g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.30,'rgba(255,243,214,.8)');
+  g.addColorStop(.68,'rgba(255,214,150,.16)');g.addColorStop(1,'rgba(255,200,140,0)');
+  x.fillStyle=g;x.fillRect(0,0,S,S);
+  x.strokeStyle='rgba(255,255,255,.5)';x.lineWidth=2.4;x.beginPath();x.arc(32,32,21,0,_ccTAU);x.stroke();
+  return c;
+}
+function _ccNormalFrom(src,strength){
+  const S=256,c=_ccCanvas(S,S),x=c.getContext('2d');
+  x.drawImage(src,0,0,S,S);
+  const d=x.getImageData(0,0,S,S).data,out=_ccCanvas(S,S),ox=out.getContext('2d'),im=ox.createImageData(S,S);
+  const H=(i,j)=>{i=(i+S)%S;j=_ccClamp(j,0,S-1);return d[(j*S+i)*4]/255;};
+  for(let j=0;j<S;j++)for(let i=0;i<S;i++){
+    const dx=(H(i+1,j)-H(i-1,j))*strength,dy=(H(i,j+1)-H(i,j-1))*strength;
+    let a=-dx,b=dy,cz=1;const l=Math.hypot(a,b,cz),o=(j*S+i)*4;
+    im.data[o]=(a/l*.5+.5)*255;im.data[o+1]=(b/l*.5+.5)*255;im.data[o+2]=(cz/l*.5+.5)*255;im.data[o+3]=255;
+  }
+  ox.putImageData(im,0,0);return out;
+}
+
+const _ccProfRaw=[[0,.075],[.20,.070],[.33,.050],[.400,.014],[.418,.032],[.424,.120],[.442,.300],[.436,.520],
+[.398,.680],[.388,.800],[.412,.930],[.428,1.040],[.429,1.500],[.428,1.920],[.421,2.030],[.398,2.140],
+[.344,2.260],[.268,2.380],[.196,2.500],[.160,2.620],[.150,2.780],[.149,2.900],[.156,2.945],[.176,2.975],
+[.180,3.030],[.172,3.065],[.150,3.075]];
+let _ccProf=null;
+function _ccGetProf(){
+  if(_ccProf)return _ccProf;
+  const v=_ccProfRaw.map(p=>new THREE.Vector3(p[0],p[1],0));
+  const curve=new THREE.CatmullRomCurve3(v,false,'centripetal',.5);
+  _ccProf=curve.getSpacedPoints(240).map(p=>new THREE.Vector2(Math.max(0,p.x),p.y));
+  return _ccProf;
+}
+function _ccRAt(y){
+  const prof=_ccGetProf();
+  if(y<=prof[0].y)return prof[0].x;
+  for(let i=1;i<prof.length;i++)if(y<=prof[i].y){
+    const a=prof[i-1],b=prof[i],t=(y-a.y)/((b.y-a.y)||1e-6);return a.x+(b.x-a.x)*t;}
+  return prof[prof.length-1].x;
+}
+function _ccShell(y0,y1,inset,steps=40,seg=160){
+  const p=[];for(let i=0;i<=steps;i++){const y=y0+(y1-y0)*i/steps;p.push(new THREE.Vector2(_ccRAt(y)+inset,y));}
+  return new THREE.LatheGeometry(p,seg);
+}
+
+let _ccTextures=null;
+let _ccEnv=null;
+function _ccGetEnv(){
+  if(_ccEnv!==null)return _ccEnv;
+  if(!rnd){return null;}
+  try{
+    const pm=new THREE.PMREMGenerator(rnd);
+    _ccEnv=pm.fromScene(new RoomEnvironment(),0.04).texture;
+    pm.dispose();
+  }catch(e){_ccEnv=false;}
+  return _ccEnv||null;
+}
+function _ccBuildTextures(){
+  if(_ccTextures)return _ccTextures;
+  const LW=2048,LH=704;
+  const artC=_ccCanvas(LW,LH),foilC=_ccCanvas(LW,LH);
+  _ccRenderLabel(artC.getContext('2d'),LW,LH,'art');
+  _ccRenderLabel(foilC.getContext('2d'),LW,LH,'foil');
+  const LM=_ccMapsFromMask(foilC,768);
+  const CW=512;
+  const capArt=_ccCanvas(CW,CW),capFoil=_ccCanvas(CW,CW);
+  _ccRenderCap(capArt.getContext('2d'),CW,'art');
+  _ccRenderCap(capFoil.getContext('2d'),CW,'foil');
+  const CM=_ccMapsFromMask(capFoil,384);
+  const drops=_ccDropCanvas();
+  _ccTextures={
+    labelArt:_ccTex(artC),
+    labelMetal:_ccTex(LM.metal,false),
+    labelRough:_ccTex(LM.rough,false),
+    labelNorm:_ccTex(LM.norm,false,[3,1]),
+    capArt:_ccTex(capArt),
+    capMetal:_ccTex(CM.metal,false),
+    capRough:_ccTex(CM.rough,false),
+    capNorm:_ccTex(CM.norm,false),
+    dropsRough:_ccTex(drops,false,[7,3]),
+    dropsNorm:_ccTex(_ccNormalFrom(drops,1.5),false,[7,3]),
+    dot:_ccTex(_ccDotCanvas())
+  };
+  return _ccTextures;
+}
+
+function createCrocoCola(){
+  const T=_ccBuildTextures();
+  const env=_ccGetEnv();
+  const isMobLocal=isMob;
+
+  const labelMat=new THREE.MeshPhysicalMaterial({
+    map:T.labelArt, metalnessMap:T.labelMetal,
+    roughnessMap:T.labelRough, normalMap:T.labelNorm,
+    metalness:1, roughness:1, normalScale:new THREE.Vector2(.75,.75),
+    clearcoat:.62, clearcoatRoughness:.13, envMap:env, envMapIntensity:1.45
+  });
+  const capTopMat=new THREE.MeshPhysicalMaterial({
+    map:T.capArt, metalnessMap:T.capMetal,
+    roughnessMap:T.capRough, normalMap:T.capNorm,
+    metalness:1, roughness:1, normalScale:new THREE.Vector2(.9,.9),
+    clearcoat:.5, clearcoatRoughness:.18, envMap:env, envMapIntensity:1.6
+  });
+  const glassMat=new THREE.MeshPhysicalMaterial({
+    color:0xffffff, metalness:0, roughness:.14,
+    transmission:isMobLocal?0:1, thickness:.62, ior:1.52,
+    transparent:isMobLocal, opacity:isMobLocal?0.55:1.0,
+    attenuationColor:new THREE.Color(0x37b877), attenuationDistance:1.15,
+    clearcoat:1, clearcoatRoughness:.03, envMap:env, envMapIntensity:1.95,
+    roughnessMap:T.dropsRough, normalMap:T.dropsNorm,
+    normalScale:new THREE.Vector2(.42,.42), side:THREE.DoubleSide
+  });
+  const colaMat=new THREE.MeshPhysicalMaterial({
+    color:0x240904, metalness:0, roughness:.16, clearcoat:1, clearcoatRoughness:.05,
+    specularIntensity:1, specularColor:new THREE.Color(0xffd9a8),
+    emissive:0x3d1204, emissiveIntensity:.95, envMap:env, envMapIntensity:1.15, side:THREE.DoubleSide
+  });
+  const goldMat=new THREE.MeshPhysicalMaterial({
+    color:0xdcae63, metalness:1, roughness:.24, clearcoat:.4, envMap:env, envMapIntensity:2.05
+  });
+  const collarMat=new THREE.MeshPhysicalMaterial({
+    color:0xe8c072, metalness:1, roughness:.19, clearcoat:.6, clearcoatRoughness:.1,
+    normalMap:T.labelNorm, normalScale:new THREE.Vector2(.5,.5), envMap:env, envMapIntensity:2.05
+  });
 
   const group=new THREE.Group();
-  const magPts=[
-    {x:0.000,y:0.000},
-    {x:0.006,y:-0.035},
-    {x:0.020,y:-0.075},
-    {x:0.042,y:-0.115},
-    {x:0.070,y:-0.150},
-    {x:0.098,y:-0.176}
-  ];
-  const magazine=buildMagazineMesh(magPts,magMats.polymer,magMats.polymerDark,magMats.rail);
-  group.add(magazine);
+  const inner=new THREE.Group();
+  inner.position.y=-0.075;
+  group.add(inner);
 
-  // ==== Пропорциональный масштаб под высоту старого магазина ====
-  // Старый магазин (c scale 1.5) имел высоту примерно 0.40 юнита.
-  const OLD_MAG_HEIGHT = 0.60;
-  group.updateMatrixWorld(true);
-  const bbox = new THREE.Box3().setFromObject(group);
-  const size = bbox.getSize(new THREE.Vector3());
-  const center = bbox.getCenter(new THREE.Vector3());
-  magazine.position.sub(center); // центрируем модель внутри группы
-  const k = OLD_MAG_HEIGHT / Math.max(0.0001, size.y);
-  group.scale.setScalar(k);
+  const prof=_ccGetProf();
+  const WALL=.024,FILL=2.90;
 
-  // Ориентация, как в рожок.html
-  group.rotation.set(0.2, -0.5, 0);
+  const glass=new THREE.Mesh(new THREE.LatheGeometry(prof,160),glassMat);
+  inner.add(glass);
 
+  const lp=[new THREE.Vector2(0,.095)];
+  for(let i=0;i<prof.length;i+=2){const p=prof[i];if(p.y>.095&&p.y<FILL)lp.push(new THREE.Vector2(Math.max(.002,p.x-WALL),p.y));}
+  lp.push(new THREE.Vector2(Math.max(.002,_ccRAt(FILL)-WALL),FILL));lp.push(new THREE.Vector2(0,FILL));
+  const cola=new THREE.Mesh(new THREE.LatheGeometry(lp,160),colaMat);
+  inner.add(cola);
+
+  const label=new THREE.Mesh(_ccShell(1.015,1.925,.007,26,160),labelMat);
+  label.rotation.y=Math.PI;
+  inner.add(label);
+
+  const collar=new THREE.Mesh(_ccShell(2.500,2.820,.006,14,160),collarMat);
+  inner.add(collar);
+  const collarLine=new THREE.Mesh(new THREE.TorusGeometry(_ccRAt(2.83)+.008,.0045,8,140),goldMat);
+  collarLine.rotation.x=Math.PI/2;collarLine.position.y=2.83;inner.add(collarLine);
+
+  const capG=new THREE.Group();capG.position.y=2.9675;inner.add(capG);
+  const skirt=new THREE.CylinderGeometry(.198,.2055,.165,240,3,true);
+  {const pos=skirt.attributes.position;
+   for(let i=0;i<pos.count;i++){
+     const vx=pos.getX(i),vy=pos.getY(i),vz=pos.getZ(i);
+     const th=Math.atan2(vx,vz),t=(vy+.0825)/.165;
+     const amp=.020*_ccSms(0,.42,t)*(1-.30*_ccSms(.72,1,t));
+     const k=1+amp*Math.sin(th*30);
+     pos.setX(i,vx*k);pos.setZ(i,vz*k);
+   }
+   skirt.computeVertexNormals();}
+  capG.add(new THREE.Mesh(skirt,goldMat));
+  const chamfer=new THREE.LatheGeometry([new THREE.Vector2(.190,.167),new THREE.Vector2(.1965,.1635),new THREE.Vector2(.198,.158)],140);
+  capG.add(new THREE.Mesh(chamfer,goldMat));
+  const capTop=new THREE.Mesh(new THREE.CircleGeometry(.190,140),capTopMat);
+  capTop.rotation.x=-Math.PI/2;capTop.position.y=.1672;capG.add(capTop);
+  const tamper=new THREE.Mesh(new THREE.TorusGeometry(.2035,.0085,10,160),goldMat);
+  tamper.rotation.x=Math.PI/2;tamper.position.y=2.958;inner.add(tamper);
+
+  const dotTex=T.dot;
+  function makeFizzy(n,size,lo,hi){
+    const g=new THREE.BufferGeometry(),arr=new Float32Array(n*3),P=[];
+    for(let i=0;i<n;i++)P.push({a:_ccRnd(0,_ccTAU),r0:_ccRnd(lo,hi),y:_ccRnd(.12,FILL),v:_ccRnd(.10,.42),w:_ccRnd(-1.4,1.4),s:_ccRnd(.6,1.4)});
+    g.setAttribute('position',new THREE.BufferAttribute(arr,3));
+    const m=new THREE.PointsMaterial({map:dotTex,size:size,sizeAttenuation:true,
+      color:0xfff0cd,transparent:false,alphaTest:.02,blending:THREE.AdditiveBlending,depthWrite:false});
+    const pts=new THREE.Points(g,m);pts.frustumCulled=false;inner.add(pts);
+    return {g,arr,P,m};
+  }
+  const F1=makeFizzy(isMobLocal?120:340,.016,.10,.94);
+  const F2=makeFizzy(isMobLocal?20:46,.040,.05,.86);
+  function step(F,dt){
+    for(let i=0;i<F.P.length;i++){
+      const b=F.P[i];
+      b.y+=b.v*dt*0.8*b.s;
+      b.a+=b.w*dt*.6;
+      if(b.y>FILL-.02){b.y=_ccRnd(.10,.34);b.v=_ccRnd(.10,.42);}
+      const lim=Math.max(.01,_ccRAt(b.y)-WALL-.014);
+      const rad=b.r0*lim+Math.sin(b.a*3+b.y*9)*.004;
+      F.arr[i*3]=Math.cos(b.a)*rad;F.arr[i*3+1]=b.y;F.arr[i*3+2]=Math.sin(b.a)*rad;
+    }
+    F.g.attributes.position.needsUpdate=true;
+  }
+
+  group.scale.setScalar(0.42);
+  group.userData={t:'cola',c:false,healAmount:10,_fizzy:[F1,F2,step]};
   return group;
 }
-function spawnMorningLoot(){for(let i=0;i<2;i++){const a=Math.random()*Math.PI*2;const landR=grassRadius(a);const minR=CLEARING_RADIUS+2;const maxR=Math.max(minR+1,landR-4);if(maxR<=minR)continue;const r=minR+Math.random()*(maxR-minR);const x=Math.cos(a)*r,z=Math.sin(a)*r;const ct=createAKMag();ct.position.set(x,0.22,z);ct.rotation.y=Math.random()*Math.PI*2;ct.userData={t:'ammo',ga:15,c:false};scn.add(ct);cr.push(ct);}}
+function spawnCrocoCola(){const a=Math.random()*Math.PI*2;const landR=grassRadius(a);const minR=CLEARING_RADIUS+3;const maxR=Math.max(minR+1,landR-5);if(maxR<=minR)return;const r=minR+Math.random()*(maxR-minR);const x=Math.cos(a)*r,z=Math.sin(a)*r;const bottle=createCrocoCola();bottle.position.set(x,0,z);bottle.rotation.y=Math.random()*Math.PI*2;scn.add(bottle);colaBottles.push(bottle);colaSpawnedToday=true;}
+/* ============================================================
+   МАГАЗИН (РОЖОК) — реалистичный полимерный, из рожок.html
+   ============================================================ */
+const _magMaxAniso = (()=>{ try { return rnd ? rnd.capabilities.getMaxAnisotropy() : 4; } catch(e){ return 4; } })();
+
+function _magMakeTexture(size, drawFn) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  drawFn(ctx, size);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = _magMaxAniso;
+  return t;
+}
+
+const _magPolymerTex = (() => {
+  const t = _magMakeTexture(512, (ctx, s) => {
+    ctx.fillStyle = '#c0c0c0';
+    ctx.fillRect(0, 0, s, s);
+    for (let i = 0; i < 16000; i++) {
+      const v = 128 + (Math.random() - 0.5) * 62;
+      ctx.fillStyle = `rgba(${v},${v},${v},0.032)`;
+      ctx.fillRect(Math.random() * s, Math.random() * s, 1 + Math.random() * 1.4, 1 + Math.random() * 1.4);
+    }
+    for (let i = 0; i < 120; i++) {
+      ctx.beginPath();
+      ctx.strokeStyle = `rgba(60,60,60,${0.015 + Math.random() * 0.035})`;
+      ctx.lineWidth = 0.3 + Math.random() * 0.9;
+      const x = Math.random() * s;
+      const y = Math.random() * s;
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + (Math.random() - 0.5) * 70, y + (Math.random() - 0.5) * 70);
+      ctx.stroke();
+    }
+  });
+  t.repeat.set(2.8, 2.2);
+  return t;
+})();
+
+function _magPmat(color, o = {}) {
+  const metalness = o.metalness ?? 0.9;
+  const isMetal = metalness > 0.45;
+  const tex = o.map || _magPolymerTex;
+  return new THREE.MeshPhysicalMaterial({
+    color,
+    metalness,
+    roughness: o.roughness ?? 0.48,
+    roughnessMap: tex,
+    bumpMap: tex,
+    bumpScale: o.bumpScale ?? (isMetal ? 0.00024 : 0.00052),
+    clearcoat: o.clearcoat ?? (isMetal ? 0.08 : 0.035),
+    clearcoatRoughness: o.clearcoatRoughness ?? 0.38,
+    envMapIntensity: o.envMapIntensity ?? 0.82,
+    side: o.side ?? THREE.FrontSide,
+    transparent: o.transparent ?? false,
+    opacity: o.opacity ?? 1.0,
+    transmission: o.transmission ?? 0,
+    thickness: o.thickness ?? 0,
+    ior: o.ior ?? 1.45
+  });
+}
+
+const _magMats = {
+  polymer:     _magPmat(0x151719, { metalness: 0.04, roughness: 0.83, clearcoat: 0.04, envMapIntensity: 0.42 }),
+  polymerDark: _magPmat(0x101214, { metalness: 0.05, roughness: 0.78, clearcoat: 0.035, envMapIntensity: 0.38 }),
+  rail:        _magPmat(0x1b1e21, { metalness: 0.82, roughness: 0.58, envMapIntensity: 0.66 }),
+  dark:        new THREE.MeshStandardMaterial({ color: 0x08090a, roughness: 0.92, metalness: 0.08 })
+};
+
+const _magRB_SEG = isMob ? 1 : 2;
+function _magRbox(w, h, d, r = 0.002) {
+  const minDim = Math.min(w, h, d);
+  const safeR = Math.max(0.0001, Math.min(r, minDim / 2.08));
+  return new RoundedBoxGeometry(w, h, d, _magRB_SEG, safeR);
+}
+function _magAdd(parent, geo, mat, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) {
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(x, y, z);
+  m.rotation.set(rx, ry, rz);
+  parent.add(m);
+  return m;
+}
+
+function _magCreateMagazine(points, mat, ribMat, floorMat) {
+  const g = new THREE.Group();
+  const up = new THREE.Vector3(0, 1, 0);
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i];
+    const p1 = points[i + 1];
+    const dir = new THREE.Vector3(p1.x - p0.x, p1.y - p0.y, 0);
+    const len = dir.length() * 1.06;
+    dir.normalize();
+    const mid = new THREE.Vector3((p0.x + p1.x) / 2, (p0.y + p1.y) / 2, 0);
+    const seg = _magAdd(g, _magRbox(0.056, len, 0.026, 0.004), mat, mid.x, mid.y, mid.z);
+    seg.quaternion.setFromUnitVectors(up, dir);
+    if (i < points.length - 2) {
+      const rib = _magAdd(g, _magRbox(0.060, 0.0045, 0.029, 0.0015), ribMat, p1.x, p1.y, 0);
+      rib.quaternion.setFromUnitVectors(up, dir);
+    }
+  }
+  const first = points[0];
+  const second = points[1];
+  const dir0 = new THREE.Vector3(second.x - first.x, second.y - first.y, 0).normalize();
+  const lip = _magAdd(g, _magRbox(0.060, 0.013, 0.030, 0.0025), ribMat, first.x, first.y, 0);
+  lip.quaternion.setFromUnitVectors(up, dir0);
+  const last = points[points.length - 1];
+  const prev = points[points.length - 2];
+  const dirLast = new THREE.Vector3(last.x - prev.x, last.y - prev.y, 0).normalize();
+  const plate = _magAdd(g, _magRbox(0.064, 0.014, 0.033, 0.003), floorMat, last.x, last.y, 0);
+  plate.quaternion.setFromUnitVectors(up, dirLast);
+  const darkInside = new THREE.MeshBasicMaterial({ color: 0x030303 });
+  _magAdd(g, _magRbox(0.050, 0.002, 0.024, 0.001), darkInside, first.x, first.y + 0.006, 0);
+  return g;
+}
+
+function createAKMag(){
+  const group = new THREE.Group();
+  const magPts = [
+    { x: 0.000, y: 0.000 },
+    { x: 0.006, y: -0.035 },
+    { x: 0.020, y: -0.075 },
+    { x: 0.042, y: -0.115 },
+    { x: 0.070, y: -0.150 },
+    { x: 0.098, y: -0.176 }
+  ];
+  const magazine = _magCreateMagazine(magPts, _magMats.polymer, _magMats.polymerDark, _magMats.rail);
+  group.add(magazine);
+  // Ориентация как в рожок.html
+  group.rotation.y = -0.5;
+  group.rotation.x = 0.2;
+  group.scale.set(3, 3, 3);
+  return group;
+}
+function spawnMorningLoot(){for(let i=0;i<2;i++){const a=Math.random()*Math.PI*2;const landR=grassRadius(a);const minR=CLEARING_RADIUS+2;const maxR=Math.max(minR+1,landR-4);if(maxR<=minR)continue;const r=minR+Math.random()*(maxR-minR);const x=Math.cos(a)*r,z=Math.sin(a)*r;const ct=createAKMag();ct.position.set(x,0.55,z);ct.rotation.y=Math.random()*Math.PI*2;ct.userData={t:'ammo',ga:15,c:false};scn.add(ct);cr.push(ct);}}
 function spawnNightCoins(){for(let i=0;i<5;i++){const a=Math.random()*Math.PI*2;const landR=grassRadius(a);const minR=CLEARING_RADIUS+2;const maxR=Math.max(minR+1,landR-4);if(maxR<=minR)continue;const r=minR+Math.random()*(maxR-minR);const x=Math.cos(a)*r,z=Math.sin(a)*r;const weight=1+Math.floor(Math.random()*100);const radius=(0.15+weight/100*0.25)/5;const coinMat=new THREE.MeshStandardMaterial({color:0xffd700,roughness:0.1,metalness:1.0,emissive:0xffaa00,emissiveIntensity:2.0});const coin=new THREE.Mesh(new THREE.SphereGeometry(radius,10,10),coinMat);coin.position.set(x,radius+0.1,z);coin.castShadow=false;coin.receiveShadow=false;coin.userData={t:'gold',ga:weight,c:false,isNightCoin:true};scn.add(coin);cr.push(coin);}}
 function resetSpark(i,sparkPos){const radius=(0.08+Math.random()*0.25)*2;const angle=Math.random()*Math.PI*2;sparkPos[i*3]=Math.cos(angle)*radius;sparkPos[i*3+1]=0.03+Math.random()*0.1;sparkPos[i*3+2]=Math.sin(angle)*radius;const speed=(0.25+Math.random()*1.0)*2;const theta=Math.random()*Math.PI*2;const phi=Math.random()*Math.PI*2;sparkVel[i*3]=Math.sin(theta)*Math.cos(phi)*speed;sparkVel[i*3+1]=Math.random()*1.2+0.25;sparkVel[i*3+2]=Math.sin(theta)*Math.sin(phi)*speed;sparkLife[i]=0.25+Math.random()*0.6;}
 function createHut(){hutGroup=new THREE.Group();hutGroup.position.set(HUT_X,0,HUT_Z);hutInteriorGroup=new THREE.Group();hutGroup.add(hutInteriorGroup);mt.hutWall.color.setHex(0xffffff);mt.hutFloor.color.setHex(0xffffff);mt.hutCeiling.color.setHex(0xffffff);mt.strawMat.color.setHex(0x8a7a4a);mt.doorMat.color.setHex(0x5a3a1e);mt.doorPlank.color.setHex(0x6b4423);const wallRadius=4.7*1.5;const wallHeight=7.5*1.5*0.5;const floor=new THREE.Mesh(new THREE.CircleGeometry(wallRadius,48),mt.hutFloor);floor.rotation.x=-Math.PI/2;floor.position.y=0.6; floor.receiveShadow=false;floor.castShadow=false;hutGroup.add(floor);const wall=new THREE.Mesh(new THREE.CylinderGeometry(wallRadius,wallRadius,wallHeight,48,1,true),mt.hutWall);wall.position.y=wallHeight/2;wall.castShadow=true;wall.receiveShadow=false;hutGroup.add(wall);const ceiling=new THREE.Mesh(new THREE.CircleGeometry(wallRadius,48),mt.hutCeiling);
@@ -2005,7 +2595,6 @@ function buildAK12MetalWithMag() {
 function createAKRifle() {
   if (gn) return;
   const ak12 = buildAK12MetalWithMag();
-  // Ствол локально в +X. Поворот +90° вокруг Y → ствол смотрит в -Z (ОТ игрока).
   ak12.rotation.y = Math.PI / 2;
   ak12.updateMatrixWorld(true);
   const bbox = new THREE.Box3().setFromObject(ak12);
@@ -2047,7 +2636,7 @@ function uH(){const hpVal=getEl('hp-val');const goldVal=getEl('gold-val');const 
 function sM(id,t){const e=getEl(id);if(!e)return;e.innerHTML=t;e.style.opacity=1;setTimeout(()=>{e.style.opacity=0;},1500);}
 function updateMoveBtn(){const btn=getEl('moveBtn');if(!btn)return;if(isStopped){btn.className='move-btn go';btn.innerText='ШАГАТЬ';}else{btn.className='move-btn stop';btn.innerText='СТОЯТЬ';}}
 function updateCamRot(){cam.rotation.order='YXZ';cam.rotation.y=yaw;cam.rotation.x=pitch;cam.rotation.z=0;}
-function updatePickups(d){if(!ia||pl.d)return;const now=performance.now();for(let i=cr.length-1;i>=0;i--){const c=cr[i];if(!c||c.userData.c)continue;const distSq=cam.position.distanceToSquared(c.position);if(distSq<4){c.userData.c=true;c.visible=false;if(c.userData.t==='gold'){pl.g+=c.userData.ga*GOLD_MULT;sM('pickup-msg','+'+(c.userData.ga*GOLD_MULT)+' <span class="scl-gold">ЗОЛОТО</span>');sfxGold();saveGoldProgressThrottled();}else{pl.a+=c.userData.ga;sM('pickup-msg','+'+c.userData.ga+' <span class="scl-ammo">ПАТРОНЫ</span>');sfxAmmo();}uH();}}for(let i=colaBottles.length-1;i>=0;i--){const b=colaBottles[i];if(!b||b.userData.c)continue;const distSq=cam.position.distanceToSquared(b.position);if(distSq<400){b.rotation.y+=d*0.8;b.position.y=Math.sin(now*0.002)*0.1;}if(distSq<4){b.userData.c=true;b.visible=false;const healAmount=b.userData.healAmount;const oldHp=pl.hp;pl.hp=Math.min(100,pl.hp+healAmount);const actualHeal=Math.floor(pl.hp-oldHp);sM('pickup-msg','+'+actualHeal+'% <span class="scl-heal">CROCO-COLA</span>');sfxDrink();vkTapticFeedback('medium');scn.remove(b);colaBottles.splice(i,1);uH();}}}
+function updatePickups(d){if(!ia||pl.d)return;const now=performance.now();for(let i=cr.length-1;i>=0;i--){const c=cr[i];if(!c||c.userData.c)continue;const distSq=cam.position.distanceToSquared(c.position);if(distSq<4){c.userData.c=true;c.visible=false;if(c.userData.t==='gold'){pl.g+=c.userData.ga*GOLD_MULT;sM('pickup-msg','+'+(c.userData.ga*GOLD_MULT)+' <span class="scl-gold">ЗОЛОТО</span>');sfxGold();saveGoldProgressThrottled();}else{pl.a+=c.userData.ga;sM('pickup-msg','+'+c.userData.ga+' <span class="scl-ammo">ПАТРОНЫ</span>');sfxAmmo();}uH();}}for(let i=colaBottles.length-1;i>=0;i--){const b=colaBottles[i];if(!b||b.userData.c)continue;const distSq=cam.position.distanceToSquared(b.position);if(distSq<400){b.rotation.y+=d*0.8;b.position.y=Math.sin(now*0.002)*0.1;if(b.userData._fizzy){const F1=b.userData._fizzy[0],F2=b.userData._fizzy[1],step=b.userData._fizzy[2];step(F1,d);step(F2,d);}}if(distSq<4){b.userData.c=true;b.visible=false;const healAmount=b.userData.healAmount;const oldHp=pl.hp;pl.hp=Math.min(100,pl.hp+healAmount);const actualHeal=Math.floor(pl.hp-oldHp);sM('pickup-msg','+'+actualHeal+'% <span class="scl-heal">CROCO-COLA</span>');sfxDrink();vkTapticFeedback('medium');scn.remove(b);colaBottles.splice(i,1);uH();}}}
 function uDN(d){gt+=d/C.dd;if(gt>=1){gt-=1;currentDay++;const dayDisplay=getEl('day-display');if(dayDisplay)dayDisplay.innerText='День '+currentDay;lootSpawnedToday=false;colaSpawnedToday=false;}const phase=getTimePhase();if(phase.morning&&morningStartTime<0)morningStartTime=performance.now();if(!phase.morning)morningStartTime=-1;if(phase.morning&&!lootSpawnedToday){spawnMorningLoot();lootSpawnedToday=true;}if(phase.morning&&!colaSpawnedToday){spawnCrocoCola();colaSpawnedToday=true;}if(phase.night&&!coinsSpawnedThisNight){spawnNightCoins();coinsSpawnedThisNight=true;}if(phase.morning&&coinsSpawnedThisNight){for(let i=cr.length-1;i>=0;i--){if(cr[i].userData&&cr[i].userData.isNightCoin){scn.remove(cr[i]);cr.splice(i,1);}}coinsSpawnedThisNight=false;}if(phase.night&&MusicManager.mode!=='night')MusicManager.setMode('night');else if(!phase.night&&MusicManager.mode!=='day')MusicManager.setMode('day');const sky=evalSky(gt);sky.sunPos.copy(computeSunDir(gt));_moonDirWorld.copy(computeMoonDir(gt));
 if(sl){
   sl.color.copy(sky.sunCol);sl.intensity=sky.si;sl.castShadow=!phase.night;if(phase.evening){const t=(gt-45/180)/(45/180);_skyTmpC.setHex(0xff66b2).multiplyScalar(1.15);sl.color.setHex(0xffffff).lerp(_skyTmpC,0.35+0.55*Math.sin(t*Math.PI));sl.intensity=sky.si+Math.sin(t*Math.PI)*0.6;}if(sl.shadow){sl.shadow.intensity=sky.sh;sl.shadow.bias=sky.sBias;sl.shadow.normalBias=sky.sNBias;if(sl.shadow.radius!==undefined)sl.shadow.radius=sky.sRad;}}
@@ -2104,7 +2693,12 @@ function showMissionSuccess(){stopMusic();saveGoldProgress();showSuccessUI();exi
 function nextMission(){missionLevel++;crocodileSpeedMultiplier*=2.0;saveGoldProgress();const missionScreen=getEl('mission-success-screen');if(missionScreen)missionScreen.style.display='none';stopMusic();sG();}
 function returnToMenu(){ia=false;pl.d=true;isLeftMouseDown=false;isRightMouseDown=false;isTwoFingersTouching=false;stopBurst();MusicManager.pauseAll();if(sndSea)sndSea.volume=0;
 if(sndFire)sndFire.volume=0;if(ax)ax.suspend();const overlay=getEl('overlay');const loseScreen=getEl('lose-screen');const missionScreen=getEl('mission-success-screen');if(overlay)overlay.style.display='flex';if(loseScreen)loseScreen.style.display='none';if(missionScreen)missionScreen.style.display='none';const startBtn=getEl('startBtn');if(startBtn){startBtn.classList.remove('btn-disabled');startBtn.innerText='НАЧАТЬ ОХОТУ';}const loadBar=getEl('loading-bar');if(loadBar)loadBar.style.width='0%';let loadProgress=0;const loadInterval=setInterval(()=>{loadProgress+=Math.random()*15+5;if(loadProgress>=100){loadProgress=100;clearInterval(loadInterval);if(startBtn)startBtn.classList.remove('btn-disabled');}if(loadBar)loadBar.style.width=loadProgress+'%';},30);exitPointerLockSafe();}
-function sG(){if(ia&&!pl.d)return;const overlay=getEl('overlay');const loseScreen=getEl('lose-screen');const missionScreen=getEl('mission-success-screen');if(overlay)overlay.style.display='none';if(loseScreen)loseScreen.style.display='none';if(missionScreen)missionScreen.style.display='none';ia=true;pl.hp=100;pl.a=50;pl.d=false;killed=0;isStopped=false;yaw=0;pitch=0;gt=0;currentDay=1;lastLootDay=-1;lootSpawnedToday=false;colaSpawnedToday=false;coinsSpawnedThisNight=false;morningStartTime=performance.now();isLeftMouseDown=false;isRightMouseDown=false;isTwoFingersTouching=false;stopBurst();stopMusic();gunRecoil=0;gunRecoilVel=0;corpses.forEach(c=>{if(c.userData&&c.userData.flies)scn.remove(c.userData.flies);scn.remove(c);});corpses=[];cam.position.set(0,2,15);updateCamRot();updateMoveBtn();en.forEach(e=>scn.remove(e.mesh));en=[];db.forEach(b=>scn.remove(b));db=[];cr.forEach(c=>scn.remove(c));cr=[];colaBottles.forEach(b=>scn.remove(b));colaBottles=[];resetPools();
+function sG(){if(ia&&!pl.d)return;const overlay=getEl('overlay');const loseScreen=getEl('lose-screen');const missionScreen=getEl('mission-success-screen');if(overlay)overlay.style.display='none';if(loseScreen)loseScreen.style.display='none';if(missionScreen)missionScreen.style.display='none';ia=true;pl.hp=100;pl.a=50;pl.d=false;killed=0;isStopped=false;yaw=0;pitch=0;gt=0;currentDay=1;lastLootDay=-1;lootSpawnedToday=false;colaSpawnedToday=false;coinsSpawnedThisNight=false;morningStartTime=performance.now();isLeftMouseDown=false;isRightMouseDown=false;isTwoFingersTouching=false;stopBurst();stopMusic();gunRecoil=0;gunRecoilVel=0;corpses.forEach(c=>{if(c.userData&&c.userData.flies)scn.remove(c.userData.flies);scn.remove(c);});corpses=[];const wallR = 4.7 * 1.5;
+cam.position.set(HUT_X + wallR + 0.3, 2, HUT_Z);
+yaw = -Math.PI / 2;
+pitch = 0;
+updateCamRot();
+updateMoveBtn();en.forEach(e=>scn.remove(e.mesh));en=[];db.forEach(b=>scn.remove(b));db=[];cr.forEach(c=>scn.remove(c));cr=[];colaBottles.forEach(b=>scn.remove(b));colaBottles=[];resetPools();
 prevDistToHut=999;
 initAudio();
 preloadCrox();
