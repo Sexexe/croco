@@ -175,18 +175,77 @@ let isMuted=false;
 function handleVisibilityChange(isHidden){if(isHidden){if(ax&&ax.state==='running')ax.suspend();if(MusicManager.ready)MusicManager.pauseAll();}else{if(!adInProgress){if(ax&&ax.state==='suspended')ax.resume().catch(()=>{});if(MusicManager.ready)MusicManager.resumeAll();}}}
 let adInProgress=false,lastInterstitialTime=0,adTimeoutHandle=null;
 const INTERSTITIAL_COOLDOWN=30000;
+/* ============================================================
+   РЕКЛАМА ВК
+   ============================================================ */
+let lastInterstitialDay = -3;      // последний день, когда показывали межстраничную рекламу
+let prevEveningState = false;      // для отслеживания перехода день -> вечер
 function restoreMusicAfterAd(){if(isMuted)return;if(MusicManager.ready)MusicManager.resumeAll();if(ax&&ax.state==='suspended'){ax.resume().catch(()=>{});}if(cam)updateMusicVolume();}
-function showInterstitialAd(){ return; }
+
+/**
+ * Межстраничная реклама.
+ * Показывается 1 раз в 3 игровых дня при переходе «день → вечер».
+ */
+function showInterstitialAd(){
+  if(!isVkEnvironment || !vkBridge) return;
+  const now = performance.now();
+  if(now - lastInterstitialTime < INTERSTITIAL_COOLDOWN) return;
+  lastInterstitialTime = now;
+  adInProgress = true;
+  const prevIa = ia;
+  ia = false; // пауза игровой логики на время рекламы
+  vkBridge.send('VKWebAppShowNativeAds', { ad_format: 'interstitial' })
+    .then(()=>{
+      adInProgress = false;
+      ia = prevIa;
+      restoreMusicAfterAd();
+    })
+    .catch((err)=>{
+      console.warn('Interstitial ad failed:', err);
+      adInProgress = false;
+      ia = prevIa;
+      restoreMusicAfterAd();
+    });
+}
+
+/**
+ * Реклама за вознаграждение.
+ * Показывается при перезапуске (после проигрыша и после выигрыша).
+ * Добавлен таймаут 60с, потому что на iOS промис может зависнуть.
+ */
 function showRewardAd(){
   return new Promise((resolve)=>{
-    if(isVkEnvironment&&vkBridge){
-      adInProgress=true;
-      vkBridge.send('VKWebAppShowNativeAds',{ad_format:'reward'})
-        .then(()=>{adInProgress=false;restoreMusicAfterAd();resolve(true);})
-        .catch(()=>{adInProgress=false;restoreMusicAfterAd();resolve(false);});
-    } else {
+    if(!isVkEnvironment || !vkBridge){
       resolve(false);
+      return;
     }
+    adInProgress = true;
+    let settled = false;
+    const timeout = setTimeout(()=>{
+      if(!settled){
+        settled = true;
+        adInProgress = false;
+        restoreMusicAfterAd();
+        resolve(false);
+      }
+    }, 60000);
+    vkBridge.send('VKWebAppShowNativeAds', { ad_format: 'reward', useWaterfall: true })
+      .then(()=>{
+        if(settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        adInProgress = false;
+        restoreMusicAfterAd();
+        resolve(true);
+      })
+      .catch(()=>{
+        if(settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        adInProgress = false;
+        restoreMusicAfterAd();
+        resolve(false);
+      });
   });
 }
 let lastTapticTime=0;
@@ -501,7 +560,7 @@ function grassRadius(theta){return shoreRadius(theta)-(6.2+Math.sin(theta*3.0+0.
 function beachOuterRadius(theta){
   const g = grassRadius(theta);
   const s = shoreRadius(theta);
-  return s + (s - g) * 3.0;
+  return s + (s - g) * 1.4;
 }
 function getLandRadiusAt(x,z){return beachOuterRadius(Math.atan2(z,x));}
 function grassHeightAt(x,z){const dist=Math.sqrt(x*x+z*z);const outer=grassRadius(Math.atan2(z,x));const edgeFade=Math.max(0,Math.min(1,(outer-dist)/8));return noise2D(x,z)*0.35*edgeFade;}
@@ -575,7 +634,7 @@ varying vec2 vSlopeDir;
 float beachOuterRadiusV(float a){return 45.5+sin(a*2.0)*1.6+sin(a*3.0+1.7)*1.1+sin(a*5.0+0.4)*0.7+sin(a*7.0+2.3)*0.4
 +((45.5+sin(a*2.0)*1.6+sin(a*3.0+1.7)*1.1+sin(a*5.0+0.4)*0.7+sin(a*7.0+2.3)*0.4)
 -(45.5+sin(a*2.0)*1.6+sin(a*3.0+1.7)*1.1+sin(a*5.0+0.4)*0.7+sin(a*7.0+2.3)*0.4
--(6.2+sin(a*3.0+0.7)*0.7+sin(a*5.0+2.1)*0.4+sin(a*7.0+1.1)*0.25)))*3.0;}
+-(6.2+sin(a*3.0+0.7)*0.7+sin(a*5.0+2.1)*0.4+sin(a*7.0+1.1)*0.25)))*1.4;}
 void main(){
 vec3 pos=position;
 float dist=length(pos.xz);
@@ -615,7 +674,7 @@ varying vec2 vSlopeDir;
 float beachOuterRadiusF(float a){return 45.5+sin(a*2.0)*1.6+sin(a*3.0+1.7)*1.1+sin(a*5.0+0.4)*0.7+sin(a*7.0+2.3)*0.4
 +((45.5+sin(a*2.0)*1.6+sin(a*3.0+1.7)*1.1+sin(a*5.0+0.4)*0.7+sin(a*7.0+2.3)*0.4)
 -(45.5+sin(a*2.0)*1.6+sin(a*3.0+1.7)*1.1+sin(a*5.0+0.4)*0.7+sin(a*7.0+2.3)*0.4
--(6.2+sin(a*3.0+0.7)*0.7+sin(a*5.0+2.1)*0.4+sin(a*7.0+1.1)*0.25)))*3.0;}
+-(6.2+sin(a*3.0+0.7)*0.7+sin(a*5.0+2.1)*0.4+sin(a*7.0+1.1)*0.25)))*1.4;}
 void main(){
 vec2 xz=vWorldPosition.xz;
 float dist=length(xz);
@@ -2647,7 +2706,27 @@ function sM(id,t){const e=getEl(id);if(!e)return;e.innerHTML=t;e.style.opacity=1
 function updateMoveBtn(){const btn=getEl('moveBtn');if(!btn)return;if(isStopped){btn.className='move-btn go';btn.innerText='ШАГАТЬ';}else{btn.className='move-btn stop';btn.innerText='СТОЯТЬ';}}
 function updateCamRot(){cam.rotation.order='YXZ';cam.rotation.y=yaw;cam.rotation.x=pitch;cam.rotation.z=0;}
 function updatePickups(d){if(!ia||pl.d)return;const now=performance.now();for(let i=cr.length-1;i>=0;i--){const c=cr[i];if(!c||c.userData.c)continue;const distSq=cam.position.distanceToSquared(c.position);if(distSq<4){c.userData.c=true;c.visible=false;if(c.userData.t==='gold'){pl.g+=c.userData.ga*GOLD_MULT;sM('pickup-msg','+'+(c.userData.ga*GOLD_MULT)+' <span class="scl-gold">ЗОЛОТО</span>');sfxGold();saveGoldProgressThrottled();}else{pl.a+=c.userData.ga;sM('pickup-msg','+'+c.userData.ga+' <span class="scl-ammo">ПАТРОНЫ</span>');sfxAmmo();}uH();}}for(let i=colaBottles.length-1;i>=0;i--){const b=colaBottles[i];if(!b||b.userData.c)continue;const distSq=cam.position.distanceToSquared(b.position);if(distSq<400){b.rotation.y+=d*0.8;b.position.y=Math.sin(now*0.002)*0.1;if(b.userData._fizzy){b.userData._fizzyTimer=(b.userData._fizzyTimer||0)+d;if(b.userData._fizzyTimer>0.05){b.userData._fizzyTimer=0;const F1=b.userData._fizzy[0],F2=b.userData._fizzy[1],step=b.userData._fizzy[2];step(F1,0.05);step(F2,0.05);}}}if(distSq<4){b.userData.c=true;b.visible=false;const healAmount=b.userData.healAmount;const oldHp=pl.hp;pl.hp=Math.min(100,pl.hp+healAmount);const actualHeal=Math.floor(pl.hp-oldHp);sM('pickup-msg','+'+actualHeal+'% <span class="scl-heal">CROCO-COLA</span>');sfxDrink();vkTapticFeedback('medium');scn.remove(b);colaBottles.splice(i,1);uH();}}}
-function uDN(d){gt+=d/C.dd;if(gt>=1){gt-=1;currentDay++;const dayDisplay=getEl('day-display');if(dayDisplay)dayDisplay.innerText='День '+currentDay;lootSpawnedToday=false;colaSpawnedToday=false;}const phase=getTimePhase();if(phase.morning&&morningStartTime<0)morningStartTime=performance.now();if(!phase.morning)morningStartTime=-1;if(phase.morning&&!lootSpawnedToday){spawnMorningLoot();lootSpawnedToday=true;}if(phase.morning&&!colaSpawnedToday){spawnCrocoCola();colaSpawnedToday=true;}if(phase.night&&!coinsSpawnedThisNight){spawnNightCoins();coinsSpawnedThisNight=true;}if(phase.morning&&coinsSpawnedThisNight){for(let i=cr.length-1;i>=0;i--){if(cr[i].userData&&cr[i].userData.isNightCoin){scn.remove(cr[i]);cr.splice(i,1);}}coinsSpawnedThisNight=false;}if(phase.night&&MusicManager.mode!=='night')MusicManager.setMode('night');else if(!phase.night&&MusicManager.mode!=='day')MusicManager.setMode('day');const sky=evalSky(gt);sky.sunPos.copy(computeSunDir(gt));_moonDirWorld.copy(computeMoonDir(gt));
+
+/**
+ * Обновление дня/ночи.
+ * Здесь же — проверка перехода «день → вечер» для показа межстраничной рекламы
+ * 1 раз в 3 игровых дня.
+ */
+function uDN(d){
+  gt+=d/C.dd;
+  if(gt>=1){gt-=1;currentDay++;const dayDisplay=getEl('day-display');if(dayDisplay)dayDisplay.innerText='День '+currentDay;lootSpawnedToday=false;colaSpawnedToday=false;}
+  const phase=getTimePhase();
+
+  // === Межстраничная реклама: 1 раз в 3 игровых дня при переходе «день → вечер» ===
+  if(phase.evening && !prevEveningState){
+    if(currentDay - lastInterstitialDay >= 3){
+      showInterstitialAd();
+      lastInterstitialDay = currentDay;
+    }
+  }
+  prevEveningState = phase.evening;
+
+  if(phase.morning&&morningStartTime<0)morningStartTime=performance.now();if(!phase.morning)morningStartTime=-1;if(phase.morning&&!lootSpawnedToday){spawnMorningLoot();lootSpawnedToday=true;}if(phase.morning&&!colaSpawnedToday){spawnCrocoCola();colaSpawnedToday=true;}if(phase.night&&!coinsSpawnedThisNight){spawnNightCoins();coinsSpawnedThisNight=true;}if(phase.morning&&coinsSpawnedThisNight){for(let i=cr.length-1;i>=0;i--){if(cr[i].userData&&cr[i].userData.isNightCoin){scn.remove(cr[i]);cr.splice(i,1);}}coinsSpawnedThisNight=false;}if(phase.night&&MusicManager.mode!=='night')MusicManager.setMode('night');else if(!phase.night&&MusicManager.mode!=='day')MusicManager.setMode('day');const sky=evalSky(gt);sky.sunPos.copy(computeSunDir(gt));_moonDirWorld.copy(computeMoonDir(gt));
 if(sl){
   sl.color.copy(sky.sunCol);sl.intensity=sky.si;sl.castShadow=!phase.night;if(phase.evening){const t=(gt-45/180)/(45/180);_skyTmpC.setHex(0xff66b2).multiplyScalar(1.15);sl.color.setHex(0xffffff).lerp(_skyTmpC,0.35+0.55*Math.sin(t*Math.PI));sl.intensity=sky.si+Math.sin(t*Math.PI)*0.6;}if(sl.shadow){sl.shadow.intensity=sky.sh;sl.shadow.bias=sky.sBias;sl.shadow.normalBias=sky.sNBias;if(sl.shadow.radius!==undefined)sl.shadow.radius=sky.sRad;}}
 if(ml){
@@ -2700,7 +2779,26 @@ const tsNow=performance.now()*0.001;en.forEach(e=>{e.wp+=d*e.sp;e.lg.forEach((l,
 function showLoseUI(){const desc=getEl('lose-desc');if(desc)desc.innerHTML='<span class="scl-gold">ЗОЛОТО</span>: '+pl.g+'<br>Крокодилы выиграли.';const loseScreen=getEl('lose-screen');if(loseScreen)loseScreen.style.display='flex';exitPointerLockSafe();}
 function showSuccessUI(){const missionScreen=getEl('mission-success-screen');const missionBg=getEl('mission-bg');const playBtn=getEl('playBtn');if(missionBg){if(isMob)missionBg.style.backgroundImage='url("https://sexexe.github.io/croco/ekran2F.jpg")';else missionBg.style.backgroundImage='url("https://sexexe.github.io/croco/ekranF.jpg")';}if(playBtn)playBtn.classList.remove('btn-disabled');if(missionScreen)missionScreen.style.display='block';}
 function showMissionSuccess(){stopMusic();saveGoldProgress();showSuccessUI();exitPointerLockSafe();}
-function nextMission(){missionLevel++;crocodileSpeedMultiplier*=2.0;saveGoldProgress();const missionScreen=getEl('mission-success-screen');if(missionScreen)missionScreen.style.display='none';stopMusic();sG();}
+
+/**
+ * Переход на следующую миссию (после выигрыша).
+ * Показываем рекламу за вознаграждение, как и при перезапуске после проигрыша.
+ */
+function nextMission(){
+  if(missionChanging) return;
+  missionChanging = true;
+  missionLevel++;
+  crocodileSpeedMultiplier*=2.0;
+  saveGoldProgress();
+  const missionScreen=getEl('mission-success-screen');
+  if(missionScreen)missionScreen.style.display='none';
+  stopMusic();
+  // Показываем рекламу за вознаграждение (аналогично doRestart)
+  showRewardAd().then(()=>{
+    missionChanging = false;
+    sG();
+  });
+}
 function returnToMenu(){ia=false;pl.d=true;isLeftMouseDown=false;isRightMouseDown=false;isTwoFingersTouching=false;stopBurst();MusicManager.pauseAll();if(sndSea)sndSea.volume=0;
 if(sndFire)sndFire.volume=0;if(ax)ax.suspend();const overlay=getEl('overlay');const loseScreen=getEl('lose-screen');const missionScreen=getEl('mission-success-screen');if(overlay)overlay.style.display='flex';if(loseScreen)loseScreen.style.display='none';if(missionScreen)missionScreen.style.display='none';const startBtn=getEl('startBtn');if(startBtn){startBtn.classList.remove('btn-disabled');startBtn.innerText='НАЧАТЬ ОХОТУ';}const loadBar=getEl('loading-bar');if(loadBar)loadBar.style.width='0%';let loadProgress=0;const loadInterval=setInterval(()=>{loadProgress+=Math.random()*15+5;if(loadProgress>=100){loadProgress=100;clearInterval(loadInterval);if(startBtn)startBtn.classList.remove('btn-disabled');}if(loadBar)loadBar.style.width=loadProgress+'%';},30);exitPointerLockSafe();}
 function sG(){if(ia&&!pl.d)return;const overlay=getEl('overlay');const loseScreen=getEl('lose-screen');const missionScreen=getEl('mission-success-screen');if(overlay)overlay.style.display='none';if(loseScreen)loseScreen.style.display='none';if(missionScreen)missionScreen.style.display='none';ia=true;pl.hp=100;pl.a=50;pl.d=false;killed=0;isStopped=false;yaw=0;pitch=0;gt=0;currentDay=1;lastLootDay=-1;lootSpawnedToday=false;colaSpawnedToday=false;coinsSpawnedThisNight=false;morningStartTime=performance.now();isLeftMouseDown=false;isRightMouseDown=false;isTwoFingersTouching=false;stopBurst();stopMusic();gunRecoil=0;gunRecoilVel=0;corpses.forEach(c=>{if(c.userData&&c.userData.flies)scn.remove(c.userData.flies);scn.remove(c);});corpses=[];const wallR = 4.7 * 1.5;
@@ -2710,6 +2808,9 @@ pitch = 0;
 updateCamRot();
 updateMoveBtn();en.forEach(e=>scn.remove(e.mesh));en=[];db.forEach(b=>scn.remove(b));db=[];cr.forEach(c=>scn.remove(c));cr=[];colaBottles.forEach(b=>scn.remove(b));colaBottles=[];resetPools();
 prevDistToHut=999;
+// сброс счётчика межстраничной рекламы при старте новой игры
+lastInterstitialDay = -3;
+prevEveningState = false;
 initAudio();
 preloadCrox();
 startMusic();
@@ -2776,7 +2877,7 @@ const doStart=()=>{
   video.play().catch(()=>{startGameAfterVideo();});
 };
 if(startBtnMain){startBtnMain.addEventListener('click',e=>{if(e.cancelable)e.preventDefault();doStart();});startBtnMain.addEventListener('touchend',e=>{if(e.cancelable)e.preventDefault();doStart();});}
-const playBtn=getEl('playBtn');const doPlay=()=>{if(missionChanging)return;missionChanging=true;stopMusic();nextMission();missionChanging=false;};if(playBtn){playBtn.addEventListener('click',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doPlay();});playBtn.addEventListener('touchend',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doPlay();});}
+const playBtn=getEl('playBtn');const doPlay=()=>{if(missionChanging)return;missionChanging=true;stopMusic();nextMission();};if(playBtn){playBtn.addEventListener('click',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doPlay();});playBtn.addEventListener('touchend',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doPlay();});}
 const restartBtn=getEl('restartBtn');
 const doRestart=()=>{
   if(restarting)return;
