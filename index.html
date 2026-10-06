@@ -2614,9 +2614,16 @@ function createAKRifle() {
   ak12.add(gunParts.muzzle);
   ak12.add(gunParts.ejection);
 if (isMob) {
-  gunBasePos.set(0.13, -0.26, -0.55);
-  gunBaseRot.set(-0.06, -0.08, 0.03 - Math.PI*30/180);
+  // Координаты подобраны в gun-tuner.html на мобильном экране
+  gunBasePos.set(0.0870, -0.2780, -0.5920);
+  gunBaseRot.set(-0.0090, 0.1380, 0.0580);
 }
+else {
+  // Координаты подобраны в gun-tuner-pc.html на ПК
+gunBasePos.set(0.1700, -0.2830, -0.5620);
+gunBaseRot.set(-0.0210, 0.0290, 0.0000);
+}
+
 gn.position.copy(gunBasePos);
 gn.rotation.copy(gunBaseRot);
 cam.add(gn);
