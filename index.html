@@ -108,6 +108,11 @@ canvas{display:block;position:fixed;top:0;left:0;width:100%;height:100%;z-index:
 }
 @media(max-width:800px){
   #splash-arc .splash-inner{ width:100vw; height:46vh; }
+  /* На мобиле: убираем тень и уменьшаем арку на 15% */
+  #splash-arc .letter{
+    font-size:calc(clamp(34px,7vw,84px) * 0.85);
+    text-shadow:none;
+  }
 }
 </style>
 </head>
@@ -2680,7 +2685,40 @@ function buildSplashArc(){
     const deg = (angle + Math.PI/2) * 180 / Math.PI;
     el.style.transform = `translate(-50%,-100%) rotate(${deg}deg)`;
     const scale = 0.88 + 0.12 * Math.cos((t - 0.5) * Math.PI);
-    el.style.fontSize = `calc(clamp(34px,7vw,84px) * ${scale.toFixed(3)})`;
+    function buildSplashArc(){
+  const inner = document.getElementById('splash-inner');
+  if(!inner) return;
+  inner.innerHTML = '';
+  const W = inner.clientWidth;
+  const H = inner.clientHeight;
+  const N = SPLASH_TEXT.length;
+  const radius = W * 1.05;
+  const cx = W / 2;
+  const cy = H + radius - 140;
+  const spread = 0.9;
+  const startAngle = -Math.PI/2 - spread/2;
+  const endAngle   = -Math.PI/2 + spread/2;
+
+  // На мобиле уменьшаем арку на 15%
+  const mobileScale = (window.innerWidth <= 800) ? 0.85 : 1.0;
+
+  for (let i = 0; i < N; i++){
+    const t = N === 1 ? 0.5 : i / (N - 1);
+    const angle = startAngle + (endAngle - startAngle) * t;
+    const x = cx + Math.cos(angle) * radius;
+    const y = cy + Math.sin(angle) * radius;
+    const el = document.createElement('div');
+    el.className = 'letter';
+    el.textContent = SPLASH_TEXT[i];
+    el.style.left = x + 'px';
+    el.style.top  = y + 'px';
+    const deg = (angle + Math.PI/2) * 180 / Math.PI;
+    el.style.transform = `translate(-50%,-100%) rotate(${deg}deg)`;
+    const scale = 0.88 + 0.12 * Math.cos((t - 0.5) * Math.PI);
+    el.style.fontSize = `calc(clamp(34px,7vw,84px) * ${(scale * mobileScale).toFixed(3)})`;
+    inner.appendChild(el);
+  }
+}
     inner.appendChild(el);
   }
 }
