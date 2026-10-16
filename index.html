@@ -3040,23 +3040,25 @@ coin.userData={t:'gold',ga:weight,c:false,isNightCoin:true};
 scn.add(coin);cr.push(coin);
 }
 for (const si of SMALL_ISLANDS) {
-const center = getSmallIslandCenter(si);
-const s = si.scale;
-const count = 6 + Math.floor(Math.random() * 6);
-for (let i = 0; i < count; i++) {
-const a = Math.random() * Math.PI * 2;
-const landR = grassRadius(a) * s;
-const r = Math.random() * Math.max(1, landR * 0.8);
-const x = center.x + Math.cos(a) * r;
-const z = center.z + Math.sin(a) * r;
-const weight = 500;
-const radius = 0.12;
-const coin = new THREE.Mesh(_nightCoinGeo, _nightCoinMat);
-coin.scale.setScalar(radius);
-const gcY = getTerrainHeightAt(x, z); coin.position.set(x, gcY + radius + 0.1, z);
-coin.userData={t:'gold',ga:weight,c:false,isNightCoin:true};
-scn.add(coin);cr.push(coin);
-}
+    const center = getSmallIslandCenter(si);
+    const s = si.scale;
+    const count = 1;
+    for (let i = 0; i < count; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const landR = grassRadius(a) * s;
+        const r = Math.random() * Math.max(1, landR * 0.8);
+        const x = center.x + Math.cos(a) * r;
+        const z = center.z + Math.sin(a) * r;
+        const weight = 500;
+        const radius = 0.12 * 0.8;
+        const coin = new THREE.Mesh(_nightCoinGeo, _nightCoinMat);
+        coin.scale.setScalar(radius);
+        const gcY = getTerrainHeightAt(x, z);
+        coin.position.set(x, gcY + radius + 0.1, z);
+        coin.userData={t:'gold',ga:weight,c:false,isNightCoin:true};
+        scn.add(coin);
+        cr.push(coin);
+    }
 }
 }
 function resetSpark(i,sparkPos){const radius=(0.08+Math.random()*0.25)*2;const angle=Math.random()*Math.PI*2;sparkPos[i*3]=Math.cos(angle)*radius;sparkPos[i*3+1]=0.03+Math.random()*0.1;sparkPos[i*3+2]=Math.sin(angle)*radius;const speed=(0.25+Math.random()*1.0)*2;const theta=Math.random()*Math.PI*2;const phi=Math.random()*Math.PI*2;sparkVel[i*3]=Math.sin(theta)*Math.cos(phi)*speed;sparkVel[i*3+1]=Math.random()*1.2+0.25;sparkVel[i*3+2]=Math.sin(theta)*Math.sin(phi)*speed;sparkLife[i]=0.25+Math.random()*0.6;}
@@ -4423,7 +4425,6 @@ for(let i=0;i<bulletPool.length;i++){const b=bulletPool[i];if(!b.userData.active
                             scn.remove(egg);
                             eggMeshes.splice(ei, 1);
                             sfxCrocDeath();
-                            sM('pickup-msg', 'EGG CRACKED! <span style="color:red">BABIES!</span>');
                             spawnSmallCrocsPatched(egg.position);
                             hit = true;
                             break;
@@ -4557,7 +4558,9 @@ if(ia&&!pl.d)return;
 showSplashArc();
 const overlay=getEl('overlay');const loseScreen=getEl('lose-screen');const missionScreen=getEl('mission-success-screen');
 if(overlay)overlay.style.display='none';if(loseScreen)loseScreen.style.display='none';if(missionScreen)missionScreen.style.display='none';
-ia=true;pl.hp=100;pl.a=50;pl.d=false;killed=0;isStopped=false;yaw=0;pitch=0;gt=0;currentDay=1;lastLootDay=-1;lootSpawnedToday=false;colaSpawnedToday=false;coinsSpawnedThisNight=false;morningStartTime=performance.now();isLeftMouseDown=false;isRightMouseDown=false;isTwoFingersTouching=false;stopBurst();stopMusic();gunRecoil=0;gunRecoilVel=0;
+ia=true;pl.hp=100;
+    window._survivingEggIds = null;
+    window._eggsSpawnedThisNight = false;pl.a=50;pl.d=false;killed=0;isStopped=false;yaw=0;pitch=0;gt=0;currentDay=1;lastLootDay=-1;lootSpawnedToday=false;colaSpawnedToday=false;coinsSpawnedThisNight=false;morningStartTime=performance.now();isLeftMouseDown=false;isRightMouseDown=false;isTwoFingersTouching=false;stopBurst();stopMusic();gunRecoil=0;gunRecoilVel=0;
 
 // PATCH: Reset Gun State
 gn = null;
@@ -4647,23 +4650,26 @@ function createEggMesh() {
 // Spawn Eggs on Island 0
 
             function spawnEggs() {
-                if (eggMeshes.length > 0) return;
-                const si = SMALL_ISLANDS[EGG_ISLAND_IDX];
-                const center = getSmallIslandCenter(si);
-                const offsets = [
-                    {x: -0.4, z: -0.2}, {x: 0.4, z: -0.2}, {x: 0, z: 0.4}, 
-                    {x: 0, z: 0, y: 0.7} 
-                ];
-                offsets.forEach(off => {
-                    const egg = createEggMesh();
-                    const ey = getTerrainHeightAt(center.x + off.x, center.z + off.z);
-                    egg.position.set(center.x + off.x, ey + 0.3 + (off.y || 0), center.z + off.z);
-                    scn.add(egg);
-                    eggMeshes.push(egg);
-                });
-            }
-            
-
+    if (eggMeshes.length > 0) return;
+    const si = SMALL_ISLANDS[EGG_ISLAND_IDX];
+    const center = getSmallIslandCenter(si);
+    const offsets = [
+        {x: -0.4, z: -0.2, id: 0},
+        {x:  0.4, z: -0.2, id: 1},
+        {x:  0.0, z:  0.4, id: 2},
+        {x:  0.0, z:  0.0, y: 0.7, id: 3}
+    ];
+    offsets.forEach(off => {
+        const egg = createEggMesh();
+        const ey = getTerrainHeightAt(center.x + off.x, center.z + off.z);
+        egg.position.set(center.x + off.x, ey + 0.3 + (off.y || 0), center.z + off.z);
+        egg.userData = egg.userData || {};
+        egg.userData.eggId = off.id;
+        egg.userData.eggOffset = off;
+        scn.add(egg);
+        eggMeshes.push(egg);
+    });
+}
 // Override sCr (Spawn Crocs) to handle limits and eggs
 const _origSCr = sCr;
 sCr = function() {
@@ -4789,36 +4795,34 @@ function checkEggInteractions() {
 
 
             function spawnSmallCrocsPatched(pos) {
-                if (typeof smallCrocCount === 'undefined') window.smallCrocCount = 0;
-                if (window.smallCrocCount >= 20) return;
-                
-                for (let i = 0; i < 5; i++) {
-                    const m = buildDetailedCrocodile();
-                    m.scale.setScalar(0.4);
-                    m.position.copy(pos);
-                    m.position.x += (Math.random() - 0.5) * 2;
-                    m.position.z += (Math.random() - 0.5) * 2;
-                    
-                    const gy = getTerrainHeightAt(m.position.x, m.position.z);
-                    m.position.y = gy - 0.1;
-                    
-                    m.rotation.y = Math.random() * Math.PI * 2;
-                    scn.add(m);
-                    
-                    const data = {
-                        mesh: m,
-                        ...m.userData,
-                        isSmall: true,
-                        sp: m.userData.sp * 2.0, // В 2 раза быстрее
-                        dmgMult: 0.2 // В 5 раз слабее
-                    };
-                    en.push(data);
-                    window.smallCrocCount++;
-                }
-            }
-            
+    if (typeof window.smallCrocCount === 'undefined') window.smallCrocCount = 0;
+    if (window.smallCrocCount >= 20) return;
 
+    for (let i = 0; i < 5; i++) {
+        const m = buildDetailedCrocodile();
+        m.scale.setScalar(0.4);
+        m.position.copy(pos);
+        m.position.x += (Math.random() - 0.5) * 2;
+        m.position.z += (Math.random() - 0.5) * 2;
 
+        // PATCH: Маленькие крокодилы двигаются ПО ВЕРШИНЕ ТРАВЫ
+        const gy = getTerrainHeightAt(m.position.x, m.position.z);
+        m.position.y = gy;
+
+        m.rotation.y = Math.random() * Math.PI * 2;
+        scn.add(m);
+
+        const data = {
+            mesh: m,
+            ...m.userData,
+            isSmall: true,
+            sp: m.userData.sp * 2.0,
+            dmgMult: 0.2
+        };
+        en.push(data);
+        window.smallCrocCount++;
+    }
+}
 // === PATCH: CLEAR EAST PATH ===
 function isOnEastPath(x, z) {
     // Хижина находится примерно на (25, 0). Восток - направление +X.
