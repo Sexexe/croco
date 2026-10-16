@@ -544,6 +544,22 @@ function shoreRadius(theta){return 45.5+Math.sin(theta*2.0)*1.6+Math.sin(theta*3
 function grassRadius(theta){return shoreRadius(theta)-(6.2+Math.sin(theta*3.0+0.7)*0.7+Math.sin(theta*5.0+2.1)*0.4+Math.sin(theta*7.0+1.1)*0.25);}
 function beachOuterRadius(theta){const g=grassRadius(theta);const s=shoreRadius(theta);return s+(s-g)*1.4;}
 function getLandRadiusAt(x,z){return beachOuterRadius(Math.atan2(z,x));}
+
+// === PATCH: Water detection for crocodile submersion ===
+function isPointInWater(x, z) {
+  const dMain = Math.hypot(x, z);
+  const aMain = Math.atan2(z, x);
+  const rMain = beachOuterRadius(aMain);
+  if (dMain < rMain) return false;
+  for (const si of SMALL_ISLANDS) {
+    const c = getSmallIslandCenter(si);
+    const dx = x - c.x, dz = z - c.z;
+    const d = Math.hypot(dx, dz);
+    const r = beachOuterRadius(Math.atan2(dz, dx)) * si.scale;
+    if (d < r) return false;
+  }
+  return true;
+}
             function getTerrainHeightAt(x, z) {
                 const dMain = Math.hypot(x, z);
                 const aMain = Math.atan2(z, x);
@@ -739,7 +755,7 @@ function __crocAddMainRocksToSmallIsland(center, s){
             
             // Коллизии для крупных камней
             if (sizeClass === 'large' && typeof obstacleColliders !== "undefined") {
-                obstacleColliders.push({x:x, z:z, r:Math.max(2.0, size*0.8)});
+                obstacleColliders.push({x:x, z:z, r:Math.max(0.4, size * 0.85)});
             }
             
             valid = true;
@@ -1904,7 +1920,8 @@ en.push({mesh:m, ...m.userData, isSmall: false});
             
 function createFlies(pos){const flyCount=isMob?4:8;const positions=new Float32Array(flyCount*3);const flyData=[];for(let i=0;i<flyCount;i++){const angle=Math.random()*Math.PI*2;const radius=0.2+Math.random()*0.6;const yOff=0.4+Math.random()*0.5;positions[i*3]=Math.cos(angle)*radius;positions[i*3+1]=yOff;positions[i*3+2]=Math.sin(angle)*radius;flyData.push({angle,radius,yOff,speed:3+Math.random()*4,ySpeed:2+Math.random()*3});}const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(positions,3));const pts=new THREE.Points(geo,new THREE.PointsMaterial({color:0x000000,size:0.015,sizeAttenuation:true}));pts.position.copy(pos);pts.position.y=0.2;pts.userData={flies:flyData};scn.add(pts);db.push(pts);return pts;}
 function updateFlies(dt){const px=cam.position.x,pz=cam.position.z;db.forEach(obj=>{if(obj.isPoints&&obj.userData.flies){const dx=obj.position.x-px,dz=obj.position.z-pz;const near=dx*dx+dz*dz<900;if(obj.visible!==near)obj.visible=near;if(!near)return;const pos=obj.geometry.attributes.position;for(let i=0;i<obj.userData.flies.length;i++){const f=obj.userData.flies[i];f.angle+=f.speed*dt;pos.setXYZ(i,Math.cos(f.angle)*f.radius,f.yOff+Math.sin(performance.now()*0.007*f.ySpeed)*0.12,Math.sin(f.angle)*f.radius);}pos.needsUpdate=true;}});}
-function killCroc(j){const e=en[j];if(!e)return;cP(e.mesh.position,0x1a3a1a,6);sfxCroxWithDelay();const ch=getEl('crosshair');if(ch){ch.style.borderColor='#ff3333';ch.style.boxShadow='0 0 8px rgba(255,50,50,0.8)';setTimeout(()=>{ch.style.borderColor='#ffffff';ch.style.boxShadow='0 0 4px rgba(0,0,0,.6)';},150);}const bd=e.mesh.clone();bd.rotation.set(Math.PI,0,0);bd.position.y=0.35;bd.userData.spawnDay=currentDay;scn.add(bd);const flies=createFlies(bd.position);bd.userData.flies=flies;corpses.push(bd);scn.remove(e.mesh);en.splice(j,1);killed++;const killDisplay=getEl('kill-display');if(killDisplay)killDisplay.innerText=killed+'/'+totalKills;vkTapticFeedback('medium');if(killed>=totalKills){pl.d=true;showMissionSuccess();}}
+function killCroc(j){const e=en[j];if(!e)return;cP(e.mesh.position,0x1a3a1a,6);sfxCroxWithDelay();const ch=getEl('crosshair');if(ch){ch.style.borderColor='#ff3333';ch.style.boxShadow='0 0 8px rgba(255,50,50,0.8)';setTimeout(()=>{ch.style.borderColor='#ffffff';ch.style.boxShadow='0 0 4px rgba(0,0,0,.6)';},150);}const bd=e.mesh.clone();bd.rotation.set(Math.PI,0,0);const corpseInWater = isPointInWater(bd.position.x, bd.position.z);
+bd.position.y = corpseInWater ? -0.45 : 0.35;bd.userData.spawnDay=currentDay;scn.add(bd);const flies=createFlies(bd.position);bd.userData.flies=flies;corpses.push(bd);scn.remove(e.mesh);en.splice(j,1);killed++;const killDisplay=getEl('kill-display');if(killDisplay)killDisplay.innerText=killed+'/'+totalKills;vkTapticFeedback('medium');if(killed>=totalKills){pl.d=true;showMissionSuccess();}}
 /* ============================================================
 ЛОДКА — заменена на лодку из boat2.html
 ============================================================ */
@@ -4461,26 +4478,10 @@ e.mesh.position.x=nextX;e.mesh.position.z=nextZ;
 
                 // OPTIMIZED: Fast height approximation (no heavy trigonometry per frame)
 const distFromCenter = Math.sqrt(nextX*nextX + nextZ*nextZ);
-let isOnLand = false;
-if (distFromCenter < 50) { // Main island approx radius
-    isOnLand = true;
-} else {
-    // Check small islands (fast distance check)
-    for (let si = 0; si < SMALL_ISLANDS.length; si++) {
-        const c = getSmallIslandCenter(SMALL_ISLANDS[si]);
-        const dx = nextX - c.x, dz = nextZ - c.z;
-        if (dx*dx + dz*dz < 2500) { // ~50 units radius squared
-            isOnLand = true;
-            break;
-        }
-    }
-}
-if (isOnLand) {
-    // On land - use cached or approximate height
-    e.mesh.position.y = 0.05; // Slightly above ground
-} else {
-    e.mesh.position.y = -0.15; // In water
-}
+// === PATCH: Crocodiles submerged 80% in water ===
+const _terrainY = getTerrainHeightAt(nextX, nextZ);
+const _crocInWater = isPointInWater(nextX, nextZ);
+e.mesh.position.y = _crocInWater ? -0.45 : (_terrainY + 0.02);
             e.mesh.lookAt(cam.position.x,e.mesh.position.y,cam.position.z);
 } else {
 const dmg = (e.dmgMult ? 15 * e.dmgMult : 15) * d; pl.hp-=dmg; sfxHurt();uH();vkTapticFeedback('heavy');
@@ -4918,6 +4919,10 @@ function createExtraWaterRocks() {
             );
             dummy.updateMatrix();
             instancedRocks.setMatrixAt(idx, dummy.matrix);
+// === PATCH: Extra water rocks are obstacles ===
+if (typeof obstacleColliders !== "undefined" && obstacleColliders) {
+  obstacleColliders.push({ x: x, z: z, r: Math.max(0.5, s * 0.85) });
+}
 
             // Цветовая вариация
             const colors = [0xdcdcdc,0xd8d8d8,0xd4d4d4,0xd0d0d0];
