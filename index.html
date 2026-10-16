@@ -2896,7 +2896,7 @@ const doStart=()=>{
   video.play().catch(()=>{startGameAfterVideo();});
 };
 if(startBtnMain){startBtnMain.addEventListener('click',e=>{if(e.cancelable)e.preventDefault();doStart();});startBtnMain.addEventListener('touchend',e=>{if(e.cancelable)e.preventDefault();doStart();});}
-const playBtn=getEl('playBtn');const doPlay=()=>{if(missionChanging)return;missionChanging=true;stopMusic();nextMission();};if(playBtn){playBtn.addEventListener('click',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doPlay();});playBtn.addEventListener('touchend',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doPlay();});}
+const playBtn=getEl('playBtn');const doPlay=()=>{missionChanging=true;stopMusic();nextMission();};if(playBtn){playBtn.addEventListener('click',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doPlay();});playBtn.addEventListener('touchend',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doPlay();});}
 const restartBtn=getEl('restartBtn');
 const doRestart=()=>{
   if(restarting)return;
