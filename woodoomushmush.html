@@ -153,18 +153,24 @@ function stoneTex(){
 
 function mushroomWorldFloorTex(){
   return texFrom((g,w,h)=>{
-    g.fillStyle='#1a0f1a';g.fillRect(0,0,w,h);
+    g.fillStyle='#240b36'; // Глубокий фиолетовый базовый цвет
+    g.fillRect(0,0,w,h);
     let d=17;const rn=()=>{d=(d*1103515245+12345)&0x7fffffff;return d/0x7fffffff;};
-    for(let i=0;i<12000;i++){
+    for(let i=0;i<15000;i++){
       const v=rn();
-      g.fillStyle=`rgba(${50+v*60|0},${20+v*40|0},${60+v*50|0},${.1+rn()*.2})`;
-      g.fillRect(rn()*w,rn()*h,1+rn()*3,1+rn()*3);}
-    for(let i=0;i<300;i++){
-      g.fillStyle=`rgba(${80+rn()*60|0},${40+rn()*40|0},${100+rn()*60|0},${.2+rn()*.3})`;
+      // Фиолетовые и пурпурные переливы
+      g.fillStyle=`rgba(${100+v*100|0},${40+v*60|0},${160+v*95|0},${.1+rn()*.25})`;
+      g.fillRect(rn()*w,rn()*h,1+rn()*4,1+rn()*4);
+    }
+    for(let i=0;i<400;i++){
+      // Светящиеся фиолетовые пятна (биолюминесценция)
+      g.fillStyle=`rgba(${180+rn()*75|0},${80+rn()*80|0},${220+rn()*35|0},${.25+rn()*.45})`;
       g.beginPath();
-      g.ellipse(rn()*w,rn()*h,4+rn()*10,3+rn()*7,rn()*PI,0,PI*2);
-      g.fill();}
-  },512,512);}
+      g.ellipse(rn()*w,rn()*h,5+rn()*12,4+rn()*8,rn()*PI,0,PI*2);
+      g.fill();
+    }
+  },512,512);
+}
 
 function softSprite(warm){
   return texFrom((g,w,h)=>{
@@ -377,7 +383,15 @@ function mushroomWorldSkyTex(){
 const bgT3=mushroomWorldSkyTex();
 const envRT3=new THREE.PMREMGenerator(renderer).fromEquirectangular(bgT3);
 
-const floorMat3=new THREE.MeshStandardMaterial({map:mushroomWorldFloorTex(),color:0x4a2050,roughness:0.98,metalness:0.0});
+// Обновлённый фиолетовый пол для грибного мира
+const floorMat3=new THREE.MeshStandardMaterial({
+  map:mushroomWorldFloorTex(),
+  color:0x9D4EDD, // Насыщенный фиолетовый
+  roughness:0.92,
+  metalness:0.15,
+  emissive: 0x3C096C, // Лёгкое фиолетовое свечение
+  emissiveIntensity: 0.3
+});
 floorMat3.map.repeat.set(10,10);
 const floor3=new THREE.Mesh(new THREE.CircleGeometry(30,80),floorMat3);
 floor3.rotation.x=-PI/2;floor3.receiveShadow=true;scene3Group.add(floor3);
@@ -822,7 +836,6 @@ function frame(){
   gluteL.scale.z=1.15+smoothState.gluteMove+smoothState.gluteBounce;
   gluteR.scale.z=1.15-smoothState.gluteMove+smoothState.gluteBounce;
 
-  // Анимация свечей и веве
   if(scene1Group.visible){
     for(let i=0;i<CANDLES;i++){
       const c=candleData[i];
