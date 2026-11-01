@@ -2443,6 +2443,7 @@ boatGroup.scale.set(BOAT_SAIL_SCALE, BOAT_SAIL_SCALE * 0.5, BOAT_SAIL_SCALE); /*
 const _bfX=-Math.sin(yaw),_bfZ=-Math.cos(yaw);
 boatGroup.position.x = cam.position.x - _bfX * BOAT_CAM_FWD;
 boatGroup.position.z = cam.position.z - _bfZ * BOAT_CAM_FWD;
+{const __wb2=C.ws/2-8;if(boatGroup.position.x>__wb2)boatGroup.position.x=__wb2;else if(boatGroup.position.x<-__wb2)boatGroup.position.x=-__wb2;if(boatGroup.position.z>__wb2)boatGroup.position.z=__wb2;else if(boatGroup.position.z<-__wb2)boatGroup.position.z=-__wb2;}
 boatGroup.rotation.y = yaw + Math.PI;
 boatYaw = boatGroup.rotation.y;
 if (typeof obstacleColliders !== "undefined" && obstacleColliders.length) {
@@ -4463,12 +4464,11 @@ cam.position.z = bestTarget.z;
 }
 }
 if(boatSailing){
-const dc=Math.sqrt(cam.position.x*cam.position.x+cam.position.z*cam.position.z);
-if(dc>300){
-const a=Math.atan2(cam.position.z,cam.position.x);
-cam.position.x=Math.cos(a)*1500;
-cam.position.z=Math.sin(a)*1500;
-}
+const __wb=C.ws/2-8;
+if(cam.position.x>__wb)cam.position.x=__wb;
+else if(cam.position.x<-__wb)cam.position.x=-__wb;
+if(cam.position.z>__wb)cam.position.z=__wb;
+else if(cam.position.z<-__wb)cam.position.z=-__wb;
 }
 if(sl.shadow){
 const sunDir = _tempVec3.copy(skyOut.sunPos).normalize();
