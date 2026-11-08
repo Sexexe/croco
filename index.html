@@ -235,7 +235,7 @@ vkBridge.send('VKWebAppShowNativeAds', { ad_format: 'reward', useWaterfall: true
 }
 let lastTapticTime=0;
 function vkTapticFeedback(t='light'){const now=performance.now();const min=t==='light'?90:220;if(now-lastTapticTime<min)return null;lastTapticTime=now;return isVkEnvironment&&vkBridge?vkBridge.send('VKWebAppTapticFeedback',{type:t}).catch(()=>{}):null;}
-function saveGoldProgress(){const data=JSON.stringify({gold:pl.g,missionLevel:missionLevel});if(isVkEnvironment&&vkBridge)vkBridge.send('VKWebAppStorageSet',{key:'croc_hunter_gold',value:data}).catch(()=>{});try{localStorage.setItem('croc_hunter_gold',data)}catch(e){}}
+function saveGoldProgress(){const data=JSON.stringify({gold:pl.g,missionLevel:missionLevel,csm:crocodileSpeedMultiplier});if(isVkEnvironment&&vkBridge)vkBridge.send('VKWebAppStorageSet',{key:'croc_hunter_gold',value:data}).catch(()=>{});try{localStorage.setItem('croc_hunter_gold',data)}catch(e){}}
 let lastSaveTime=0;function saveGoldProgressThrottled(){const now=performance.now();if(now-lastSaveTime>5000){lastSaveTime=now;saveGoldProgress();}}
 function loadGoldProgress(){return new Promise((resolve)=>{if(isVkEnvironment&&vkBridge){vkBridge.send('VKWebAppStorageGet',{keys:['croc_hunter_gold']}).then((data)=>{if(data&&data.keys&&data.keys.length>0&&data.keys[0].value){try{resolve(JSON.parse(data.keys[0].value))}catch(e){resolve(null)}}else{try{const d=localStorage.getItem('croc_hunter_gold');resolve(d?JSON.parse(d):null)}catch(e){resolve(null)}}}).catch(()=>{try{const d=localStorage.getItem('croc_hunter_gold');resolve(d?JSON.parse(d):null)}catch(e){resolve(null)}});}else{try{const d=localStorage.getItem('croc_hunter_gold');resolve(d?JSON.parse(d):null)}catch(e){resolve(null)}}});}
 function showCheatMessage(msg){const el=getEl('cheat-msg');el.textContent=msg;el.style.display='block';setTimeout(()=>{el.style.display='none';},3000);}
@@ -1894,7 +1894,100 @@ blinkFreq: 0.18 + Math.random() * 0.16
 return croc;
 }
 
-            function sCr(){
+            
+function __crocInitState(){
+ if(!window.__crocState){
+  window.__crocState={guardsKilled:0,smallKilled:0,waveKilled:[0,0,0,0,0,0,0]};
+ }
+ return window.__crocState;
+}
+function __crocOnKill(e){
+ if(!e)return;
+ const st=__crocInitState();
+ if(e.isGuard){st.guardsKilled++;}
+ else if(e.isSmall&&e.fromEgg){st.smallKilled++;}
+ else if(typeof e.waveIdx==='number'&&e.waveIdx>=0&&st.waveKilled[e.waveIdx]!==undefined){st.waveKilled[e.waveIdx]++;}
+}
+function __crocCountActive(f){
+ let n=0;
+ for(let i=0;i<en.length;i++){
+  if(en[i]&&f(en[i]))n++;
+ }
+ return n;
+}
+function __crocSpawnSmallOne(){
+ const m=buildDetailedCrocodile();
+ m.scale.setScalar(0.4);
+ const c=getSmallIslandCenter(SMALL_ISLANDS[EGG_ISLAND_IDX]);
+ const a=Math.random()*Math.PI*2;
+ const r=Math.random()*8;
+ const x=c.x+Math.cos(a)*r;
+ const z=c.z+Math.sin(a)*r;
+ const y=getTerrainHeightAtCached(x,z);
+ m.position.set(x,y,z);
+ m.rotation.y=Math.random()*Math.PI*2;
+ scn.add(m);
+ en.push({mesh:m, ...m.userData, isSmall:true, fromEgg:true, hp:1, waveIdx:-1, dmgMult:0.2, sp:m.userData.sp*2.0, sizeMult:0.4});
+}
+function __crocSpawnOne(scale,hp,waveIdx,isGuard){
+ const m=buildDetailedCrocodile();
+ m.scale.setScalar(1.35*scale);
+ let guardCenter=null;
+ if(isGuard){
+  const si=SMALL_ISLANDS[EGG_ISLAND_IDX];
+  const c=getSmallIslandCenter(si);
+  guardCenter=new THREE.Vector3(c.x,0,c.z);
+  const a=Math.random()*Math.PI*2;
+  const shore=beachOuterRadius(a)*si.scale;
+  const r=shore+3+Math.random()*8;
+  m.position.set(c.x+Math.cos(a)*r,-0.65,c.z+Math.sin(a)*r);
+  m.rotation.y=a+Math.PI/2;
+ } else {
+  const a=Math.random()*Math.PI*2;
+  const minR=CLEARING_RADIUS+3;
+  let maxR=grassRadius(a)-2;
+  if(maxR<minR)maxR=minR+1;
+  const r=minR+Math.random()*(maxR-minR);
+  const x=Math.cos(a)*r;
+  const z=Math.sin(a)*r;
+  const y=getTerrainHeightAtCached(x,z);
+  m.position.set(x,y+0.02,z);
+  m.rotation.y=Math.random()*Math.PI*2;
+ }
+ scn.add(m);
+ en.push({mesh:m, ...m.userData, isSmall:false, isGuard:!!isGuard, guardCenter:guardCenter, hp:hp, waveIdx:waveIdx, sizeMult:scale});
+}
+function __crocSpawnManager(){
+ if(killed>=totalKills)return;
+ const st=__crocInitState();
+ const waveCounts=[20,20,10,5,3,1,1];
+ const waveScales=[1,2,3,4,5,7,10];
+
+ const activeSmall=__crocCountActive(function(e){return e.isSmall&&e.fromEgg;});
+ if(window.__crocEggsDone && st.smallKilled+activeSmall<20 && activeSmall<5){
+  __crocSpawnSmallOne();
+  return;
+ }
+
+ const activeGuards=__crocCountActive(function(e){return e.isGuard;});
+ if(st.guardsKilled+activeGuards<20 && activeGuards<4){
+  __crocSpawnOne(2,2,-1,true);
+  return;
+ }
+
+ for(let w=0;w<waveCounts.length;w++){
+  const prevDone=(w===0)||st.waveKilled[w-1]>=waveCounts[w-1];
+  if(!prevDone)break;
+  const activeW=__crocCountActive(function(e){return e.waveIdx===w;});
+  const remaining=waveCounts[w]-st.waveKilled[w]-activeW;
+  const maxActive=Math.min(4,waveCounts[w]);
+  if(remaining>0&&activeW<maxActive){
+   __crocSpawnOne(waveScales[w],waveScales[w],w,false);
+   return;
+  }
+ }
+}
+function sCr(){
                 const activeBig = en.filter(e => !e.isSmall).length;
                 const toSpawn = Math.min(3 - activeBig, MAX_BIG_CROCS - killed); 
                 if (toSpawn <= 0) return;
@@ -1935,6 +2028,20 @@ en.push({mesh:m, ...m.userData, isSmall: false});
             
 function createFlies(pos){const flyCount=isMob?4:8;const positions=new Float32Array(flyCount*3);const flyData=[];for(let i=0;i<flyCount;i++){const angle=Math.random()*Math.PI*2;const radius=0.2+Math.random()*0.6;const yOff=0.4+Math.random()*0.5;positions[i*3]=Math.cos(angle)*radius;positions[i*3+1]=yOff;positions[i*3+2]=Math.sin(angle)*radius;flyData.push({angle,radius,yOff,speed:3+Math.random()*4,ySpeed:2+Math.random()*3});}const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(positions,3));const pts=new THREE.Points(geo,new THREE.PointsMaterial({color:0x000000,size:0.015,sizeAttenuation:true}));pts.position.copy(pos);pts.position.y=0.2;pts.userData={flies:flyData};scn.add(pts);db.push(pts);return pts;}
 function updateFlies(dt){const px=cam.position.x,pz=cam.position.z;db.forEach(obj=>{if(obj.isPoints&&obj.userData.flies){const dx=obj.position.x-px,dz=obj.position.z-pz;const near=dx*dx+dz*dz<900;if(obj.visible!==near)obj.visible=near;if(!near)return;const pos=obj.geometry.attributes.position;for(let i=0;i<obj.userData.flies.length;i++){const f=obj.userData.flies[i];f.angle+=f.speed*dt;pos.setXYZ(i,Math.cos(f.angle)*f.radius,f.yOff+Math.sin(performance.now()*0.007*f.ySpeed)*0.12,Math.sin(f.angle)*f.radius);}pos.needsUpdate=true;}});}
+
+function __damageCroc(j,dmg){
+ const e=en[j];
+ if(!e)return false;
+ if(e.hp===undefined)e.hp=1;
+ e.hp-=dmg;
+ if(e.hp>0){
+  cP(e.mesh.position,0xff5500,2);
+  return false;
+ }
+ __crocOnKill(e);
+ killCroc(j);
+ return true;
+}
 function killCroc(j){const e=en[j];if(!e)return;cP(e.mesh.position,0x1a3a1a,6);sfxCroxWithDelay();const ch=getEl('crosshair');if(ch){ch.style.borderColor='#ff3333';ch.style.boxShadow='0 0 8px rgba(255,50,50,0.8)';setTimeout(()=>{ch.style.borderColor='#ffffff';ch.style.boxShadow='0 0 4px rgba(0,0,0,.6)';},150);}const bd=e.mesh.clone();bd.rotation.set(Math.PI,0,0);const corpseInWater = isPointInWater(bd.position.x, bd.position.z);
 bd.position.y = corpseInWater ? -0.45 : 0.35;bd.userData.spawnDay=currentDay;scn.add(bd);const flies=createFlies(bd.position);bd.userData.flies=flies;corpses.push(bd);scn.remove(e.mesh);en.splice(j,1);killed++;const killDisplay=getEl('kill-display');if(killDisplay)killDisplay.innerText=killed+'/'+totalKills;vkTapticFeedback('medium');if(killed>=totalKills){pl.d=true;showMissionSuccess();}}
 /* ============================================================
@@ -4309,7 +4416,7 @@ function fireCenter(){
     // PATCH: Cannot shoot without gun
     if(!gn) return; 
     
-    const n=performance.now()/1000;if(n-ls<C.fr||pl.a<=0)return;pl.a--;ls=n;uH();sfxShoot();vkTapticFeedback('light');gunRecoil=1;gunRecoilVel=0;const ch=getEl('crosshair');if(ch){ch.classList.add('shooting');setTimeout(()=>ch.classList.remove('shooting'),100);}cam.getWorldDirection(_tempVec);_tempVec.normalize();if(gunParts&&gunParts.muzzle)gunParts.muzzle.getWorldPosition(_muzzlePos);else _muzzlePos.copy(cam.position).addScaledVector(_tempVec,0.8);if(muzzleFlash){muzzleFlash.position.copy(_muzzlePos);muzzleFlash.visible=true;setTimeout(()=>{muzzleFlash.visible=false;},50);}if(muzzleLight){muzzleLight.position.copy(_muzzlePos);muzzleLight.intensity=4;setTimeout(()=>{if(muzzleLight)muzzleLight.intensity=0;},40);}if(gunParts&&gunParts.ejection){gunParts.ejection.getWorldPosition(_ejectPos);spawnCasing(_ejectPos,_tempVec);}else{spawnCasing(cam.position,_tempVec);}shakeIntensity=0.04;const b=getBullet();if(b){b.position.copy(cam.position).addScaledVector(_tempVec,0.5);b.userData.v.copy(_tempVec).multiplyScalar(C.bs);b.userData.l=2;}const dl=Math.sqrt(_tempVec.x*_tempVec.x+_tempVec.z*_tempVec.z)||1;const ndx=_tempVec.x/dl,ndz=_tempVec.z/dl;let bestIdx=-1,bestDistSq=2.5*2.5;for(let j=0;j<en.length;j++){const e=en[j];_tempVec2.subVectors(e.mesh.position,cam.position);_tempVec2.y=0;const distSq=_tempVec2.lengthSq();if(distSq<bestDistSq){const dist=Math.sqrt(distSq);_tempVec2.divideScalar(dist||1);const dot=_tempVec2.x*ndx+_tempVec2.z*ndz;if(dot>0.35){bestDistSq=distSq;bestIdx=j;}}}if(bestIdx>=0)killCroc(bestIdx);}
+    const n=performance.now()/1000;if(n-ls<C.fr||pl.a<=0)return;pl.a--;ls=n;uH();sfxShoot();vkTapticFeedback('light');gunRecoil=1;gunRecoilVel=0;const ch=getEl('crosshair');if(ch){ch.classList.add('shooting');setTimeout(()=>ch.classList.remove('shooting'),100);}cam.getWorldDirection(_tempVec);_tempVec.normalize();if(gunParts&&gunParts.muzzle)gunParts.muzzle.getWorldPosition(_muzzlePos);else _muzzlePos.copy(cam.position).addScaledVector(_tempVec,0.8);if(muzzleFlash){muzzleFlash.position.copy(_muzzlePos);muzzleFlash.visible=true;setTimeout(()=>{muzzleFlash.visible=false;},50);}if(muzzleLight){muzzleLight.position.copy(_muzzlePos);muzzleLight.intensity=4;setTimeout(()=>{if(muzzleLight)muzzleLight.intensity=0;},40);}if(gunParts&&gunParts.ejection){gunParts.ejection.getWorldPosition(_ejectPos);spawnCasing(_ejectPos,_tempVec);}else{spawnCasing(cam.position,_tempVec);}shakeIntensity=0.04;const b=getBullet();if(b){b.position.copy(cam.position).addScaledVector(_tempVec,0.5);b.userData.v.copy(_tempVec).multiplyScalar(C.bs);b.userData.l=2;}const dl=Math.sqrt(_tempVec.x*_tempVec.x+_tempVec.z*_tempVec.z)||1;const ndx=_tempVec.x/dl,ndz=_tempVec.z/dl;let bestIdx=-1,bestDistSq=2.5*2.5;for(let j=0;j<en.length;j++){const e=en[j];_tempVec2.subVectors(e.mesh.position,cam.position);_tempVec2.y=0;const distSq=_tempVec2.lengthSq();if(distSq<bestDistSq){const dist=Math.sqrt(distSq);_tempVec2.divideScalar(dist||1);const dot=_tempVec2.x*ndx+_tempVec2.z*ndz;if(dot>0.35){bestDistSq=distSq;bestIdx=j;}}}if(bestIdx>=0)__damageCroc(bestIdx,1);}
 function uH(){const hpVal=getEl('hp-val');const goldVal=getEl('gold-val');const ammoVal=getEl('ammo-val');if(!hpVal||!goldVal||!ammoVal)return;const hpText=Math.max(0,Math.floor(pl.hp))+'%';if(hpVal.innerText!==hpText)hpVal.innerText=hpText;const goldText=pl.g+' oz';if(goldVal.innerText!==goldText)goldVal.innerText=goldText;const ammoText=String(pl.a);if(ammoVal.innerText!==ammoText)ammoVal.innerText=ammoText;const newColor=pl.hp>30?'#8b0000':'#ff0000';if(hpVal.style.color!==newColor)hpVal.style.color=newColor;}
 let _pickupMsgTimer=null;
 function sM(id,t){const e=getEl(id);if(!e)return;e.innerHTML=t;e.style.opacity=1;clearTimeout(_pickupMsgTimer);_pickupMsgTimer=setTimeout(()=>{e.style.opacity=0;},1500);}
@@ -4400,7 +4507,7 @@ if(shakeIntensity>0.001){cam.position.x+=(Math.random()-0.5)*shakeIntensity;cam.
 while(corpses.length>MAX_CORPSES){const old=corpses.shift();if(old.userData&&old.userData.flies)scn.remove(old.userData.flies);scn.remove(old);}
 for(let i=corpses.length-1;i>=0;i--){if(currentDay>corpses[i].userData.spawnDay){if(corpses[i].userData.flies)scn.remove(corpses[i].userData.flies);scn.remove(corpses[i]);corpses.splice(i,1);}}
 const phase=getTimePhase();
-if(phase.night&&!boatSailing&&en.length<3)sCr();
+if(phase.night&&!boatSailing)__crocSpawnManager();
 if(!phase.night&&en.length>0){en.forEach(e=>scn.remove(e.mesh));en=[];}
 if((gridFrameCount++&3)===0)buildCrocGrid();
 const wallR=4.7*1.5;
@@ -4490,7 +4597,7 @@ sl.shadow.camera.near = 1;
 sl.shadow.camera.far = 260;
 sl.shadow.camera.updateProjectionMatrix();
 }
-for(let i=0;i<bulletPool.length;i++){const b=bulletPool[i];if(!b.userData.active)continue;b.position.addScaledVector(b.userData.v,d);b.userData.l-=d;let hit=false;const nearby=getNearbyCrocs(b.position.x,b.position.z,3);for(let j=0;j<nearby.length;j++){const e=nearby[j];const ddx=b.position.x-e.mesh.position.x;const ddy=b.position.y-e.mesh.position.y;const ddz=b.position.z-e.mesh.position.z;if(ddx*ddx+ddy*ddy+ddz*ddz<1.44){const idx=en.indexOf(e);if(idx>=0){killCroc(idx);hit=true;break;}}}
+for(let i=0;i<bulletPool.length;i++){const b=bulletPool[i];if(!b.userData.active)continue;b.position.addScaledVector(b.userData.v,d);b.userData.l-=d;let hit=false;const nearby=getNearbyCrocs(b.position.x,b.position.z,3);for(let j=0;j<nearby.length;j++){const e=nearby[j];const ddx=b.position.x-e.mesh.position.x;const ddy=b.position.y-e.mesh.position.y;const ddz=b.position.z-e.mesh.position.z;const __hr=Math.min(6,1.2*(e.sizeMult||1));if(ddx*ddx+ddy*ddy+ddz*ddz<__hr*__hr){const idx=en.indexOf(e);if(idx>=0){__damageCroc(idx,1);hit=true;break;}}}
                 // CHECK EGG HIT
                 if (typeof eggMeshes !== 'undefined' && eggMeshes.length > 0) {
                     for (let ei = eggMeshes.length - 1; ei >= 0; ei--) {
@@ -4500,7 +4607,7 @@ for(let i=0;i<bulletPool.length;i++){const b=bulletPool[i];if(!b.userData.active
                         const dzE = b.position.z - egg.position.z;
                         if (dxE*dxE + dyE*dyE + dzE*dzE < 1.0) {
                             scn.remove(egg);
-                            eggMeshes.splice(ei, 1);
+                            eggMeshes.splice(ei, 1); window.__crocEggsDone=true;
                             sfxCrocDeath();
                             spawnSmallCrocsPatched(egg.position);
                             hit = true;
@@ -4529,7 +4636,8 @@ if (leg) leg.position.y = Math.abs(Math.sin(walkPhase + idx * Math.PI)) * 0.02;
 });
 }
 }
-_tempVec.subVectors(cam.position,e.mesh.position);_tempVec.y=0;const ds=_tempVec.length();
+let __crocTarget=cam.position;if(e.isGuard&&e.guardCenter){const __gd=Math.hypot(e.mesh.position.x-e.guardCenter.x,e.mesh.position.z-e.guardCenter.z);if(__gd>18)__crocTarget=e.guardCenter;}
+_tempVec.subVectors(__crocTarget,e.mesh.position);_tempVec.y=0;const ds=_tempVec.length();
 if(ds>1.2){
 _tempVec.normalize();
 let nextX=e.mesh.position.x+_tempVec.x*e.sp*d;
@@ -4627,7 +4735,7 @@ const overlay=getEl('overlay');const loseScreen=getEl('lose-screen');const missi
 if(overlay)overlay.style.display='none';if(loseScreen)loseScreen.style.display='none';if(missionScreen)missionScreen.style.display='none';
 ia=true;pl.hp=100;
     window._survivingEggIds = null;
-    window._eggsSpawnedThisNight = false;pl.a=50;pl.d=false;killed=0;isStopped=false;yaw=0;pitch=0;gt=0;currentDay=1;lastLootDay=-1;lootSpawnedToday=false;colaSpawnedToday=false;coinsSpawnedThisNight=false;morningStartTime=performance.now();isLeftMouseDown=false;isRightMouseDown=false;isTwoFingersTouching=false;stopBurst();stopMusic();gunRecoil=0;gunRecoilVel=0;
+    window._eggsSpawnedThisNight = false;pl.a=50;pl.d=false;killed=0;window.__crocState=null;window.__crocEggsDone=false;window.smallCrocCount=0;if(typeof eggMeshes!=='undefined'){for(let ei=eggMeshes.length-1;ei>=0;ei--){scn.remove(eggMeshes[ei]);}eggMeshes.length=0;}isStopped=false;yaw=0;pitch=0;gt=0;currentDay=1;lastLootDay=-1;lootSpawnedToday=false;colaSpawnedToday=false;coinsSpawnedThisNight=false;morningStartTime=performance.now();isLeftMouseDown=false;isRightMouseDown=false;isTwoFingersTouching=false;stopBurst();stopMusic();gunRecoil=0;gunRecoilVel=0;
 
 // PATCH: Reset Gun State
 if (gn) { cam.remove(gn); } 
@@ -4671,7 +4779,7 @@ sM('pickup-msg','Find the AK-12 on the Right Island!');
 localStorage.setItem('croc_hunter_tutorial_shown','true');
 }
 loadGoldProgress().then(saved=>{if(saved&&typeof saved.gold==='number'){pl.g=saved.gold;}else{pl.g=0;}
-missionLevel=1;crocodileSpeedMultiplier=1.0;
+missionLevel=(saved&&typeof saved.missionLevel==="number")?saved.missionLevel:1;crocodileSpeedMultiplier=(saved&&typeof saved.csm==="number"&&saved.csm>=1)?saved.csm:1.0;
 uH();});const dayDisplay=getEl('day-display');if(dayDisplay)dayDisplay.innerText='Day 1';const killDisplay=getEl('kill-display');if(killDisplay)killDisplay.innerText='0/'+totalKills;if(!isMob&&document.body.requestPointerLock){
 try{
 const p=document.body.requestPointerLock();
@@ -4719,7 +4827,7 @@ function createEggMesh() {
 
 // Spawn Eggs on Island 0
 
-            function spawnEggs() {
+            function spawnEggs() { if(window.__crocEggsDone) return;
     if (eggMeshes.length > 0) return;
     const si = SMALL_ISLANDS[EGG_ISLAND_IDX];
     const center = getSmallIslandCenter(si);
@@ -4826,7 +4934,7 @@ killCroc = function(j) {
     // This implies specific linkage. Since we don't have IDs, let's say:
     // If killed croc is BIG and near Egg Island -> Spawn Small.
     
-    const distToEggIsland = e.mesh.position.distanceTo(getSmallIslandCenter(SMALL_ISLANDS[EGG_ISLAND_IDX]));
+    const distToEggIsland = 99999;
     
     _origKillCroc(j);
     
@@ -4887,7 +4995,7 @@ function checkEggInteractions() {
             ...m.userData,
             isSmall: true,
             sp: m.userData.sp * 2.0,
-            dmgMult: 0.2
+            dmgMult: 0.2, hp: 1, waveIdx: -1, fromEgg: true, sizeMult: 0.4
         };
         en.push(data);
         window.smallCrocCount++;
@@ -5017,7 +5125,7 @@ createExtraWaterRocks();
 rebuildObstacleGrid();if (gn) { cam.remove(gn); } 
  gn = null; 
  gunParts = null; void 0;createHut();initEffectPools();initMuzzleFlash();createBoatScene();const moveBtn=getEl('moveBtn');const musicBtn=getEl('musicBtn');const menuBtn=getEl('menuBtn');if(musicBtn){musicBtn.addEventListener('click',e=>{e.stopPropagation();toggleMute();});}if(menuBtn){menuBtn.addEventListener('click',e=>{e.stopPropagation();returnToMenu();});}
-if(!globalThis.__crocKeysBound){globalThis.__crocKeysBound=true;document.addEventListener('keydown',e=>{if(e.code==='ArrowUp')tvKeys.up=true;else if(e.code==='ArrowDown')tvKeys.down=true;else if(e.code==='ArrowLeft')tvKeys.left=true;else if(e.code==='ArrowRight')tvKeys.right=true;else if(e.code==='Enter')tvKeys.enter=true;if(e.code==='Space'&&ia&&!pl.d){e.preventDefault();isStopped=!isStopped;updateMoveBtn();}if(e.shiftKey&&e.code==='Digit2'){crocodileSpeedMultiplier*=2.0;showCheatMessage(`⚡ CROC SPEED x2! (${crocodileSpeedMultiplier.toFixed(2)})`);en.forEach(c=>{if(c.sp)c.sp*=2.0;});}if(e.shiftKey&&e.code==='Digit1'){crocodileSpeedMultiplier/=2.0;showCheatMessage(`🐌 CROC SPEED /2! (${crocodileSpeedMultiplier.toFixed(2)})`);en.forEach(c=>{if(c.sp)c.sp/=2.0;});}if(e.code==='AudioVolumeUp'||e.keyCode===24){if(e.cancelable)e.preventDefault();crocodileSpeedMultiplier*=2.0;showCheatMessage(`⚡ CROC SPEED x2! (${crocodileSpeedMultiplier.toFixed(2)})`);en.forEach(c=>{if(c.sp)c.sp*=2.0;});}else if(e.code==='AudioVolumeDown'||e.keyCode===25){if(e.cancelable)e.preventDefault();crocodileSpeedMultiplier/=2.0;showCheatMessage(`🐌 CROC SPEED /2! (${crocodileSpeedMultiplier.toFixed(2)})`);en.forEach(c=>{if(c.sp)c.sp/=2.0;});}});document.addEventListener('keyup',e=>{if(e.code==='ArrowUp')tvKeys.up=false;else if(e.code==='ArrowDown')tvKeys.down=false;else if(e.code==='ArrowLeft')tvKeys.left=false;else if(e.code==='ArrowRight')tvKeys.right=false;else if(e.code==='Enter')tvKeys.enter=false;});}
+if(!globalThis.__crocKeysBound){globalThis.__crocKeysBound=true;document.addEventListener('keydown',e=>{if(e.code==='ArrowUp')tvKeys.up=true;else if(e.code==='ArrowDown')tvKeys.down=true;else if(e.code==='ArrowLeft')tvKeys.left=true;else if(e.code==='ArrowRight')tvKeys.right=true;else if(e.code==='Enter')tvKeys.enter=true;if(e.code==='Space'&&ia&&!pl.d){e.preventDefault();isStopped=!isStopped;updateMoveBtn();}if(e.shiftKey&&e.code==='Digit2'){crocodileSpeedMultiplier*=2.0;showCheatMessage(`⚡ CROC SPEED x2! (${crocodileSpeedMultiplier.toFixed(2)})`);en.forEach(c=>{if(c.sp)c.sp*=2.0;});}if(e.shiftKey&&e.code==='Digit1'){void 0/*speed locked: crocodileSpeedMultiplier/=2.0*/;showCheatMessage(`🐌 CROC SPEED /2! (${crocodileSpeedMultiplier.toFixed(2)})`);en.forEach(c=>{if(c.sp)void 0;/*speed locked*/});}if(e.code==='AudioVolumeUp'||e.keyCode===24){if(e.cancelable)e.preventDefault();crocodileSpeedMultiplier*=2.0;showCheatMessage(`⚡ CROC SPEED x2! (${crocodileSpeedMultiplier.toFixed(2)})`);en.forEach(c=>{if(c.sp)c.sp*=2.0;});}else if(e.code==='AudioVolumeDown'||e.keyCode===25){if(e.cancelable)e.preventDefault();void 0/*speed locked: crocodileSpeedMultiplier/=2.0*/;showCheatMessage(`🐌 CROC SPEED /2! (${crocodileSpeedMultiplier.toFixed(2)})`);en.forEach(c=>{if(c.sp)void 0;/*speed locked*/});}});document.addEventListener('keyup',e=>{if(e.code==='ArrowUp')tvKeys.up=false;else if(e.code==='ArrowDown')tvKeys.down=false;else if(e.code==='ArrowLeft')tvKeys.left=false;else if(e.code==='ArrowRight')tvKeys.right=false;else if(e.code==='Enter')tvKeys.enter=false;});}
 if(isMob){if(moveBtn){moveBtn.style.display='flex';moveBtn.addEventListener('touchend',e=>{e.preventDefault();e.stopPropagation();isStopped=!isStopped;updateMoveBtn();});moveBtn.addEventListener('click',e=>{e.stopPropagation();isStopped=!isStopped;updateMoveBtn();});}document.addEventListener('touchstart',e=>{if(!ia||pl.d)return;const target=e.target;if(target&&target.closest&&(target.closest('.cowboy-btn')||target.closest('.move-btn')||target.closest('.music-btn')||target.closest('.menu-btn')||target.closest('.play-btn')))return;if(e.touches.length>=2){isTwoFingersTouching=true;isDragging=false;checkBurstState();return;}touchStartX=e.touches[0].clientX;touchStartY=e.touches[0].clientY;isDragging=false;},{passive:false});document.addEventListener('touchmove',e=>{if(!ia||pl.d)return;if(isTwoFingersTouching){if(e.touches.length<2){isTwoFingersTouching=false;checkBurstState();}return;}e.preventDefault();const dx=e.touches[0].clientX-touchStartX;const dy=e.touches[0].clientY-touchStartY;if(Math.abs(dx)>5||Math.abs(dy)>5)isDragging=true;if(isDragging){yaw-=dx*0.005;pitch-=dy*0.005;pitch=Math.max(-1.047198,Math.min(1.047198,pitch));updateCamRot();touchStartX=e.touches[0].clientX;touchStartY=e.touches[0].clientY;}},{passive:false});document.addEventListener('touchend',e=>{if(!ia||pl.d)return;if(isTwoFingersTouching){if(e.touches.length<2){isTwoFingersTouching=false;checkBurstState();}return;}if(!isDragging)fireCenter();},{passive:false});document.addEventListener('touchcancel',()=>{isTwoFingersTouching=false;checkBurstState();},{passive:false});}else{if(moveBtn)moveBtn.style.display='none';document.addEventListener('mousedown',e=>{if(!ia||pl.d)return;if(e.button===0){isLeftMouseDown=true;checkBurstState();}else if(e.button===2){isRightMouseDown=true;isStopped=!isStopped;updateMoveBtn();}});document.addEventListener('mouseup',e=>{if(e.button===0){isLeftMouseDown=false;checkBurstState();}else if(e.button===2){isRightMouseDown=false;checkBurstState();}});document.addEventListener('contextmenu',e=>e.preventDefault());document.addEventListener('mousemove',e=>{if(document.pointerLockElement===document.body){yaw-=e.movementX*0.002;pitch-=e.movementY*0.002;pitch=Math.max(-1.047198,Math.min(1.047198,pitch));updateCamRot();}});document.addEventListener('click',e=>{if(!ia||pl.d)return;const target=e.target;if(target&&target.closest&&(target.closest('.cowboy-btn')||target.closest('.move-btn')||target.closest('.music-btn')||target.closest('.menu-btn')||target.closest('.play-btn')))return;if(document.body.requestPointerLock)document.body.requestPointerLock();});window.addEventListener('blur',()=>{isLeftMouseDown=false;isRightMouseDown=false;checkBurstState();});}
 addEventListener('resize',onR);
 const startBtnMain=getEl('startBtn');
@@ -5045,7 +5153,7 @@ video.onclick=startGameAfterVideo;
 video.play().catch(()=>{startGameAfterVideo();});
 };
 if(startBtnMain){startBtnMain.addEventListener('click',e=>{if(e.cancelable)e.preventDefault();doStart();});startBtnMain.addEventListener('touchend',e=>{if(e.cancelable)e.preventDefault();doStart();});}
-const playBtn=getEl('playBtn');const doPlay=()=>{if(missionChanging)return;missionChanging=true;stopMusic();nextMission();};if(playBtn){playBtn.addEventListener('click',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doPlay();});playBtn.addEventListener('touchend',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doPlay();});}
+const playBtn=getEl('playBtn');const doPlay=()=>{if(missionChanging)return;stopMusic();nextMission();};if(playBtn){playBtn.addEventListener('click',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doPlay();});playBtn.addEventListener('touchend',e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();doPlay();});}
 const restartBtn=getEl('restartBtn');
 const doRestart=()=>{
 if(restarting)return;
